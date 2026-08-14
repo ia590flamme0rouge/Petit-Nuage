@@ -7,11 +7,15 @@ import discord
 import discord.sinks
 from discord.ext import commands
 
-# Patch pour les bugs connus de Pycord 2.8.1 avec SinkEventRouter
+# Patch pour les bugs connus de Pycord 2.8.1 (SinkEventRouter & PacketDecoder)
 if not hasattr(discord.sinks.Sink, "__sink_listeners__"):
     discord.sinks.Sink.__sink_listeners__ = []
 if not hasattr(discord.sinks.Sink, "walk_children"):
     discord.sinks.Sink.walk_children = lambda self: []
+if not hasattr(discord.sinks.Sink, "is_opus"):
+    discord.sinks.Sink.is_opus = lambda self: False
+if not hasattr(discord.sinks.Sink, "wants_opus"):
+    discord.sinks.Sink.wants_opus = lambda self: False
 
 import config
 from image_generator import fetch_avatar_bytes, build_welcome_banner
@@ -38,8 +42,6 @@ voice_handler = VoiceHandler()
 @bot.event
 async def on_ready():
     logger.info(f"Connecté en tant que {bot.user} (ID: {bot.user.id}) - Version Discord: {getattr(discord, '__version__', 'inconnue')}")
-    if not hasattr(discord.VoiceClient, "start_recording"):
-        logger.warning("ATTENTION: discord.VoiceClient n'a pas start_recording ! L'ancienne librairie discord.py est encore dans le cache de Render.")
 
 
 @bot.event
@@ -171,8 +173,6 @@ async def join_cmd(ctx: commands.Context):
                 vc.start_recording(
                     discord.sinks.WaveSink(),
                     on_recording_finished,
-                    ctx.channel,
-                    vc,
                 )
                 logger.info("Enregistrement vocal Py-cord DAVE demarre.")
                 await ctx.send("🎙️ **J'écoute le salon vocal !** Parlez, puis faites `!stop` quand vous avez fini pour que je réponde.")
@@ -196,15 +196,23 @@ async def stop_cmd(ctx: commands.Context):
         await ctx.send("Le bot n'est pas dans un salon vocal.")
 
 
-async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.TextChannel, voice_client: discord.VoiceClient, *args):
+async def on_recording_finished(sink: discord.sinks.Sink, *args):
     """Callback execute quand l'enregistrement vocal se termine."""
+    voice_client = getattr(sink, "vc", None) or (args[0] if args else None)
+    text_channel = voice_handler.text_channel
+
+    if not text_channel:
+        logger.error("Salon textuel introuvable pour la réponse.")
+        return
+
     if not config.GROQ_API_KEY:
         await text_channel.send("⚠️ `GROQ_API_KEY` est manquante dans les variables d'environnement sur Render !")
         return
 
     processed = False
     for user_id, audio in sink.audio_data.items():
-        member = text_channel.guild.get_member(user_id)
+        guild = text_channel.guild if text_channel else None
+        member = guild.get_member(user_id) if guild else None
         if member and member.bot:
             continue
 
@@ -229,7 +237,8 @@ async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.
         for chunk in split_message(response):
             await text_channel.send(chunk)
 
-        await voice_handler.speak(response, voice_client)
+        if voice_client:
+            await voice_handler.speak(response, voice_client)
 
     if not processed:
         await text_channel.send("⚠️ Aucun audio capturé. Assurez-vous de parler dans votre micro avant de faire `!stop` !")
@@ -240,8 +249,6 @@ async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.
             voice_client.start_recording(
                 discord.sinks.WaveSink(),
                 on_recording_finished,
-                text_channel,
-                voice_client,
             )
             await text_channel.send("🎙️ *Écoute relancée !* Parlez puis faites `!stop` quand vous souhaitez une réponse.")
         except Exception as e:

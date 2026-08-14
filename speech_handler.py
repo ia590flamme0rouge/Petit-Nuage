@@ -33,20 +33,23 @@ def pcm_to_wav_bytes(pcm_data: bytes) -> bytes:
     return buf.read()
 
 
-async def transcribe_audio(pcm_data: bytes) -> Optional[str]:
-    """Envoie l'audio WAV a l'API Whisper de Groq pour transcription."""
+async def transcribe_audio(audio_bytes: bytes) -> Optional[str]:
+    """Envoie l'audio WAV/PCM a l'API Whisper de Groq pour transcription."""
     if not config.GROQ_API_KEY:
         logger.warning("GROQ_API_KEY manquante, transcription impossible.")
         return None
 
-    # Filtre les enregistrements trop courts (< 0.2s = bruit)
-    min_bytes = DISCORD_SAMPLE_RATE * DISCORD_CHANNELS * DISCORD_SAMPLE_WIDTH // 5
-    if len(pcm_data) < min_bytes:
-        logger.debug(f"Audio trop court ({len(pcm_data)} octets < {min_bytes}), ignore.")
+    if len(audio_bytes) < 2000:
+        logger.debug(f"Audio trop court ({len(audio_bytes)} octets), ignore.")
         return None
 
-    logger.info(f"Envoi de {len(pcm_data)} octets PCM a Whisper Groq...")
-    wav_bytes = pcm_to_wav_bytes(pcm_data)
+    # Si ce n'est pas deja du WAV, convertit du PCM en WAV
+    if not audio_bytes.startswith(b"RIFF"):
+        wav_bytes = pcm_to_wav_bytes(audio_bytes)
+    else:
+        wav_bytes = audio_bytes
+
+    logger.info(f"Envoi de {len(wav_bytes)} octets WAV a Whisper Groq...")
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
     headers = {"Authorization": f"Bearer {config.GROQ_API_KEY}"}
 

@@ -11,7 +11,6 @@ from typing import Optional
 
 import discord
 import edge_tts
-from discord.ext import voice_recv
 
 import config
 
@@ -55,10 +54,10 @@ class VoiceHandler:
             await member.guild.voice_client.disconnect()
 
         try:
-            await voice_channel.connect(cls=voice_recv.VoiceRecvClient)
+            await voice_channel.connect()
             self.text_channel = text_channel
             logger.info(f"Bot connecte au salon vocal: {voice_channel.name}")
-            await text_channel.send(f"Je rejoins **{voice_channel.name}** ! Parlez, je vous ecoute.")
+            await text_channel.send(f"Je rejoins **{voice_channel.name}** ! Activation de l'écoute vocale...")
             # Demarrer le worker TTS si besoin
             self._ensure_tts_worker()
             return True

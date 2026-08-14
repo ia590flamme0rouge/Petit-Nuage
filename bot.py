@@ -1,28 +1,28 @@
 import asyncio
 import os
 import logging
+from typing import Optional
 from aiohttp import web
 import discord
 from discord.ext import commands
-from discord.ext import voice_recv
 
 import config
 from image_generator import fetch_avatar_bytes, build_welcome_banner
 from ai_handler import AIHandler, split_message
 from voice_handler import VoiceHandler
-from speech_handler import VoiceSink, transcribe_audio
+from speech_handler import transcribe_audio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("welcome_bot")
 
 intents = discord.Intents.default()
-intents.members = True  # OBLIGATOIRE pour détecter les arrivées, à activer aussi dans le portail dev
-intents.message_content = True  # OBLIGATOIRE pour lire le contenu des messages et mentions
+intents.members = True
+intents.message_content = True
+intents.voice_states = True
 
 bot = commands.Bot(
     command_prefix="!",
     intents=intents,
-    voice_cls=voice_recv.VoiceRecvClient,  # Permet la reception audio
 )
 ai_handler = AIHandler()
 voice_handler = VoiceHandler()
@@ -31,29 +31,15 @@ voice_handler = VoiceHandler()
 @bot.event
 async def on_ready():
     logger.info(f"Connecté en tant que {bot.user} (ID: {bot.user.id})")
-    if not discord.opus.is_loaded():
-        for lib in ["opus", "libopus", "libopus.so.0", "libopus.so", "libopus-0.dll"]:
-            try:
-                discord.opus.load_opus(lib)
-                logger.info(f"Opus chargé avec succès via {lib}")
-                break
-            except Exception:
-                pass
-        if not discord.opus.is_loaded():
-            logger.warning("ATTENTION: Opus n'a pas pu être chargé automatiquement.")
 
 
 @bot.event
 async def on_message(message: discord.Message):
-    # Toujours ignorer les messages provenant de bots (pour éviter les boucles infinies)
     if message.author.bot:
         return
 
-    # Gestion de la réponse IA lors d'une mention directe du bot
     if config.AI_ENABLED_ON_MENTION and bot.user in message.mentions:
-        # Extraire la question en supprimant la mention du bot du texte du message
         cleaned_prompt = message.content.replace(f"<@{bot.user.id}>", "").replace(f"<@!{bot.user.id}>", "").strip()
-
         if cleaned_prompt:
             async with message.channel.typing():
                 response = await ai_handler.generate_response(message.channel.id, cleaned_prompt)
@@ -62,7 +48,6 @@ async def on_message(message: discord.Message):
         else:
             await message.channel.send("Bonjour ! Comment puis-je vous aider aujourd'hui ?")
 
-    # Important : exécuter les commandes préfixées (ex: !ask, !reset)
     await bot.process_commands(message)
 
 
@@ -88,7 +73,6 @@ async def reset_cmd(ctx: commands.Context):
         await ctx.send("Aucun historique de conversation à réinitialiser dans ce salon.")
 
 
-
 @bot.event
 async def on_member_join(member: discord.Member):
     guild = member.guild
@@ -96,7 +80,6 @@ async def on_member_join(member: discord.Member):
     if guild.id != config.GUILD_ID:
         return
 
- # --- Attribution des rôles ---
     role_ids_to_add = [
         rid for rid in (config.WELCOME_ROLE_ID, config.WELCOME_ROLE_ID_2) if rid != 0
     ]
@@ -114,14 +97,11 @@ async def on_member_join(member: discord.Member):
             await member.add_roles(*roles_to_add, reason="Rôles automatiques à l'arrivée")
         except discord.Forbidden:
             logger.error(
-                f"Permissions insuffisantes pour attribuer un ou plusieurs rôles à {member}. "
-                "Vérifie que le rôle du bot est AU-DESSUS de tous les rôles à attribuer "
-                "dans la hiérarchie des rôles du serveur."
+                f"Permissions insuffisantes pour attribuer un ou plusieurs rôles à {member}."
             )
         except discord.HTTPException as e:
             logger.error(f"Erreur HTTP lors de l'attribution des rôles : {e}")
 
-    # --- Génération et envoi de la bannière ---
     channel = guild.get_channel(config.WELCOME_CHANNEL_ID)
     if channel is None:
         logger.warning(f"WELCOME_CHANNEL_ID={config.WELCOME_CHANNEL_ID} introuvable.")
@@ -152,7 +132,6 @@ async def on_member_join(member: discord.Member):
 
     except Exception as e:
         logger.error(f"Erreur lors de la génération/envoi de la bannière : {e}")
-        # Fallback texte si l'image plante, pour ne pas silencieusement rater l'accueil
         await channel.send(
             f"Bienvenue {member.mention} sur **{guild.name}** ! "
             f"Tu es le membre n°{guild.member_count}."
@@ -160,7 +139,7 @@ async def on_member_join(member: discord.Member):
 
 
 # ---------------------------------------------------------------------------
-# Commandes vocales
+# Commandes vocales (Py-cord DAVE compatible)
 # ---------------------------------------------------------------------------
 
 @bot.command(name="join")
@@ -170,96 +149,78 @@ async def join_cmd(ctx: commands.Context):
         await ctx.send("La fonctionnalite vocale est desactivee.")
         return
 
-    # S'assure qu'Opus est chargé
-    if not discord.opus.is_loaded():
-        for lib in ["opus", "libopus", "libopus.so.0", "libopus.so", "libopus-0.dll"]:
-            try:
-                discord.opus.load_opus(lib)
-                break
-            except Exception:
-                pass
-
-    if not discord.opus.is_loaded():
-        await ctx.send("⚠️ **Attention** : La bibliothèque audio Opus n'a pas pu être chargée sur le serveur Render. La réception audio risque de ne pas fonctionner.")
-
     joined = await voice_handler.join(ctx.author, ctx.channel)
     if joined:
         vc = ctx.guild.voice_client
-        if vc and isinstance(vc, voice_recv.VoiceRecvClient):
+        if vc:
             try:
-                if vc.is_listening():
-                    vc.stop_listening()
+                if getattr(vc, "recording", False):
+                    vc.stop_recording()
 
-                sink = VoiceSink(
-                    on_speech=lambda user, audio: _handle_speech(user, audio, ctx.channel, vc),
-                    silence_duration=config.VOICE_SILENCE_DURATION,
-                    loop=bot.loop,
+                vc.start_recording(
+                    discord.sinks.WaveSink(),
+                    on_recording_finished,
+                    ctx.channel,
+                    vc,
                 )
-                vc.listen(sink)
-                logger.info("Ecoute vocale demarree avec succes.")
-                await ctx.send("🎙️ **J'écoute le salon vocal !** Parlez, je vous réponds.")
+                logger.info("Enregistrement vocal Py-cord DAVE demarre.")
+                await ctx.send("🎙️ **J'écoute le salon vocal !** Parlez, puis faites `!stop` (ou `!leave`) quand vous avez fini pour que je réponde.")
             except Exception as e:
-                logger.error(f"Erreur lors de vc.listen(): {e}", exc_info=True)
-                await ctx.send(f"⚠️ Erreur lors du démarrage de l'écoute : `{e}`")
-        else:
-            logger.error(f"ECHEC de démarrage de l'écoute: voice_client est {type(vc)}")
-            await ctx.send("⚠️ Erreur: le client vocal n'a pas pu démarrer l'écoute.")
+                logger.error(f"Erreur lors de start_recording: {e}", exc_info=True)
+                await ctx.send(f"⚠️ Erreur démarrage écoute : `{e}`")
 
 
-async def _handle_speech(
-    user: Optional[discord.Member],
-    audio_data: bytes,
-    text_channel: discord.TextChannel,
-    voice_client: voice_recv.VoiceRecvClient,
-):
-    """
-    Pipeline: audio PCM -> Whisper STT -> Groq IA -> edge-tts TTS
-    """
+@bot.command(name="stop")
+async def stop_cmd(ctx: commands.Context):
+    """Arrete l'enregistrement vocal et traite ce qui a ete dit."""
+    vc = ctx.guild.voice_client
+    if vc and getattr(vc, "recording", False):
+        vc.stop_recording()
+        await ctx.send("⏹️ Traitement de votre message vocal en cours...")
+    else:
+        await ctx.send("Aucun enregistrement vocal en cours.")
+
+
+async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.TextChannel, voice_client: discord.VoiceClient, *args):
+    """Callback execute quand l'enregistrement vocal se termine."""
     if not config.GROQ_API_KEY:
         await text_channel.send("⚠️ `GROQ_API_KEY` est manquante dans les variables d'environnement sur Render !")
         return
 
-    if user is None:
-        # Si le membre n'a pas ete identifie par SSRC, prend le premier humain dans le vocal
-        if voice_client and voice_client.channel:
-            members = [m for m in voice_client.channel.members if not m.bot]
-            if members:
-                user = members[0]
+    for user_id, audio in sink.audio_data.items():
+        member = text_channel.guild.get_member(user_id)
+        if member and member.bot:
+            continue
 
-    if not user or user.bot:
-        return
+        wav_bytes = audio.file.read()
+        if len(wav_bytes) < 4000:
+            continue
 
-    logger.info(f"Traitement de la voix de {user.display_name} ({len(audio_data)} octets PCM)...")
+        logger.info(f"Traitement de {len(wav_bytes)} octets audio pour user_id={user_id}...")
 
-    # 1. Transcription vocale -> texte
-    transcript = await transcribe_audio(audio_data)
-    if not transcript:
-        logger.info("Transcription vide ou silence.")
-        return
+        transcript = await transcribe_audio(wav_bytes)
+        if not transcript:
+            continue
 
-    logger.info(f"{user.display_name} a dit: {transcript!r}")
+        display_name = member.display_name if member else f"Membre {user_id}"
+        await text_channel.send(f"🎙️ **{display_name}** : {transcript}")
 
-    # 2. Affiche la transcription dans le salon texte
-    await text_channel.send(f"🎙️ **{user.display_name}** : {transcript}")
+        async with text_channel.typing():
+            response = await ai_handler.generate_response(text_channel.id, transcript)
 
-    # 3. Genere la reponse IA
-    async with text_channel.typing():
-        response = await ai_handler.generate_response(text_channel.id, transcript)
+        for chunk in split_message(response):
+            await text_channel.send(chunk)
 
-    # 4. Envoie la reponse en texte
-    for chunk in split_message(response):
-        await text_channel.send(chunk)
-
-    # 5. Lit la reponse a voix haute (TTS)
-    await voice_handler.speak(response, voice_client)
+        await voice_handler.speak(response, voice_client)
 
 
 @bot.command(name="leave")
 async def leave_cmd(ctx: commands.Context):
     """Le bot quitte le salon vocal."""
     vc = ctx.guild.voice_client
-    if vc and isinstance(vc, voice_recv.VoiceRecvClient):
-        vc.stop_listening()
+    if vc:
+        if getattr(vc, "recording", False):
+            vc.stop_recording()
     await voice_handler.leave(ctx.guild, ctx.channel)
 
 
@@ -268,7 +229,6 @@ async def health_check(request):
 
 
 async def run_web_server():
-    """Mini serveur HTTP pour satisfaire Render (plan gratuit Web Service)."""
     app = web.Application()
     app.router.add_get("/", health_check)
     runner = web.AppRunner(app)
@@ -288,4 +248,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main())
+

@@ -4,7 +4,12 @@ import logging
 from typing import Optional
 from aiohttp import web
 import discord
+import discord.sinks
 from discord.ext import commands
+
+# Patch pour le bug connu de Pycord 2.8.1 (SinkEventRouter __sink_listeners__)
+if not hasattr(discord.sinks.Sink, "__sink_listeners__"):
+    discord.sinks.Sink.__sink_listeners__ = []
 
 import config
 from image_generator import fetch_avatar_bytes, build_welcome_banner
@@ -155,11 +160,6 @@ async def join_cmd(ctx: commands.Context):
     if joined:
         vc = ctx.guild.voice_client
         if vc:
-            if not hasattr(vc, "start_recording"):
-                await ctx.send("⚠️ **Render utilise encore l'ancien cache.** Va sur Render -> bouton **Manual Deploy** -> clique sur **Clear build cache & deploy** !")
-                logger.error("start_recording introuvable sur VoiceClient (cache Render périmé)")
-                return
-
             try:
                 if getattr(vc, "recording", False):
                     vc.stop_recording()

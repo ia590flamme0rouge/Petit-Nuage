@@ -277,22 +277,59 @@ async def leave_cmd(ctx: commands.Context):
 
 
 # ---------------------------------------------------------------------------
-# Serveur HTTP pour Render health check
 # ---------------------------------------------------------------------------
+# Serveur HTTP & WebSocket pour l'Avatar Animé
+# ---------------------------------------------------------------------------
+
+ws_clients = set()
+
 
 async def health_check(request):
     return web.Response(text="OK")
 
 
+async def avatar_page(request):
+    if os.path.exists("avatar.html"):
+        with open("avatar.html", "r", encoding="utf-8") as f:
+            html = f.read()
+        return web.Response(text=html, content_type="text/html")
+    return web.Response(text="Page avatar.html introuvable", status=404)
+
+
+async def ws_handler(request):
+    ws = web.WebSocketResponse()
+    await ws.prepare(request)
+    ws_clients.add(ws)
+    logger.info("Nouveau client WebSocket connecté à l'Avatar.")
+    try:
+        async for msg in ws:
+            pass
+    finally:
+        ws_clients.discard(ws)
+    return ws
+
+
+async def broadcast_avatar_event(event_data: dict):
+    if not ws_clients:
+        return
+    for ws in list(ws_clients):
+        try:
+            await ws.send_json(event_data)
+        except Exception:
+            pass
+
+
 async def run_web_server():
     app = web.Application()
     app.router.add_get("/", health_check)
+    app.router.add_get("/avatar", avatar_page)
+    app.router.add_get("/ws", ws_handler)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logger.info(f"Serveur HTTP de health check démarré sur le port {port}")
+    logger.info(f"Serveur HTTP et WebSocket Avatar démarré sur le port {port} (/avatar)")
 
 
 async def main():

@@ -125,7 +125,7 @@ class VoiceHandler:
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
                 tmp_path = tmp.name
 
-            communicate = edge_tts.Communicate(text=text, voice=config.VOICE_TTS_VOICE, pitch="-25Hz")
+            communicate = edge_tts.Communicate(text=text, voice=config.VOICE_TTS_VOICE, pitch="-10Hz")
             await communicate.save(tmp_path)
 
             while voice_client.is_playing():
@@ -144,10 +144,22 @@ class VoiceHandler:
             if self.text_channel:
                 await self.text_channel.send("🔊 *Le bot parle dans le salon vocal...*")
 
+            try:
+                from bot import broadcast_avatar_event
+                await broadcast_avatar_event({"type": "speaking", "value": True, "text": text})
+            except Exception:
+                pass
+
             logger.info(f"Début de lecture TTS dans le vocal pour: {text[:50]}...")
             voice_client.play(audio_source, after=after_play)
             await done_event.wait()
             logger.info("Fin de lecture TTS.")
+
+            try:
+                from bot import broadcast_avatar_event
+                await broadcast_avatar_event({"type": "speaking", "value": False})
+            except Exception:
+                pass
 
         except Exception as e:
             logger.error(f"Erreur TTS: {e}")

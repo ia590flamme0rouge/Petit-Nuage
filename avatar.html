@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Petit Nuage ☁️ — Avatar Animé Synchronisé</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Ambient Background Glow */
+    .glow-bg {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(139, 92, 246, 0.15) 50%, transparent 70%);
+      border-radius: 50%;
+      filter: blur(60px);
+      z-index: 0;
+      transition: transform 0.5s ease, background 0.5s ease;
+    }
+    .glow-bg.speaking {
+      transform: scale(1.4);
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.35) 0%, rgba(56, 189, 248, 0.25) 50%, transparent 70%);
+    }
+
+    /* Container */
+    .avatar-container {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    /* Audio Waves Rings */
+    .wave-rings {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .wave-ring {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all 0.3s ease;
+    }
+    .speaking .wave-ring:nth-child(1) {
+      animation: pulse-ring 1.8s infinite ease-out;
+    }
+    .speaking .wave-ring:nth-child(2) {
+      animation: pulse-ring 1.8s infinite ease-out 0.6s;
+    }
+    .speaking .wave-ring:nth-child(3) {
+      animation: pulse-ring 1.8s infinite ease-out 1.2s;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.8); opacity: 0.8; border-color: rgba(236, 72, 153, 0.8); }
+      100% { transform: scale(1.6); opacity: 0; border-color: rgba(56, 189, 248, 0); }
+    }
+
+    /* Avatar Floating Graphic */
+    .avatar-wrapper {
+      position: relative;
+      width: 240px;
+      height: 240px;
+      animation: float 4s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-12px) rotate(1deg); }
+    }
+
+    /* SVG Character */
+    svg#cloud-avatar {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 15px 35px rgba(56, 189, 248, 0.3));
+      transition: filter 0.3s ease;
+    }
+    .speaking svg#cloud-avatar {
+      filter: drop-shadow(0 20px 45px rgba(236, 72, 153, 0.5));
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      padding: 0.75rem 1.5rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      font-size: 1.1rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: #22c55e;
+      box-shadow: 0 0 12px #22c55e;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .status-badge.speaking {
+      border-color: rgba(236, 72, 153, 0.5);
+      background: rgba(236, 72, 153, 0.15);
+    }
+    .status-badge.speaking .status-dot {
+      background-color: #ec4899;
+      box-shadow: 0 0 15px #ec4899;
+      animation: blink-dot 0.8s infinite alternate;
+    }
+    @keyframes blink-dot {
+      from { opacity: 0.4; }
+      to { opacity: 1; }
+    }
+
+    /* Subtitle Box */
+    .subtitle-box {
+      max-width: 500px;
+      text-align: center;
+      font-size: 1.15rem;
+      color: #94a3b8;
+      line-height: 1.5;
+      min-height: 3rem;
+      transition: opacity 0.3s ease, color 0.3s ease;
+    }
+    .subtitle-box.active {
+      color: #e2e8f0;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="glow-bg" id="glow"></div>
+
+  <div class="avatar-container" id="avatar-container">
+    
+    <div class="wave-rings">
+      <div class="wave-ring"></div>
+      <div class="wave-ring"></div>
+      <div class="wave-ring"></div>
+    </div>
+
+    <div class="avatar-wrapper">
+      <svg idcloud-avatar viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#38bdf8" />
+            <stop offset="100%" stop-color="#8b5cf6" />
+          </linearGradient>
+          <linearGradient id="speakingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#f43f5e" />
+            <stop offset="100%" stop-color="#a855f7" />
+          </linearGradient>
+          <filter id="glow-filter" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        <!-- Cloud Body -->
+        <path id="cloud-body" fill="url(#cloudGrad)" d="
+          M 50,130
+          A 35,35 0 0,1 40,75
+          A 40,40 0 0,1 100,50
+          A 45,45 0 0,1 165,80
+          A 35,35 0 0,1 150,135
+          Z" />
+
+        <!-- Eyes Left & Right -->
+        <g id="eyes">
+          <ellipse id="eye-left" cx="75" cy="92" rx="7" ry="10" fill="#ffffff" />
+          <ellipse id="eye-right" cx="125" cy="92" rx="7" ry="10" fill="#ffffff" />
+          <!-- Pupils -->
+          <circle cx="76" cy="93" r="4" fill="#0f172a" />
+          <circle cx="126" cy="93" r="4" fill="#0f172a" />
+          <!-- Eye highlights -->
+          <circle cx="74" cy="90" r="1.5" fill="#ffffff" />
+          <circle cx="124" cy="90" r="1.5" fill="#ffffff" />
+        </g>
+
+        <!-- Cheeks -->
+        <circle cx="62" cy="105" r="7" fill="rgba(255, 255, 255, 0.25)" />
+        <circle cx="138" cy="105" r="7" fill="rgba(255, 255, 255, 0.25)" />
+
+        <!-- Mouth Path (Dynamically animated) -->
+        <path id="mouth" d="M 85,108 Q 100,118 115,108" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" />
+      </svg>
+    </div>
+
+    <div class="status-badge" id="status-badge">
+      <div class="status-dot"></div>
+      <span id="status-text">Petit Nuage ☁️ — En écoute</span>
+    </div>
+
+    <div class="subtitle-box" id="subtitle-box">
+      Attente d'interaction vocale...
+    </div>
+
+  </div>
+
+  <script>
+    const glow = document.getElementById('glow');
+    const container = document.getElementById('avatar-container');
+    const statusBadge = document.getElementById('status-badge');
+    const statusText = document.getElementById('status-text');
+    const subtitleBox = document.getElementById('subtitle-box');
+    const mouth = document.getElementById('mouth');
+    const eyeLeft = document.getElementById('eye-left');
+    const eyeRight = document.getElementById('eye-right');
+    const cloudBody = document.getElementById('cloud-body');
+
+    let isSpeaking = false;
+    let mouthInterval = null;
+
+    // Natural Eye Blinking
+    function triggerBlink() {
+      eyeLeft.setAttribute('ry', '1');
+      eyeRight.setAttribute('ry', '1');
+      setTimeout(() => {
+        eyeLeft.setAttribute('ry', '10');
+        eyeRight.setAttribute('ry', '10');
+      }, 150);
+
+      const nextBlink = Math.random() * 4000 + 2000;
+      setTimeout(triggerBlink, nextBlink);
+    }
+    setTimeout(triggerBlink, 2000);
+
+    // Mouth Animation for Lip-Sync
+    function startMouthAnimation() {
+      if (mouthInterval) clearInterval(mouthInterval);
+      let open = false;
+      mouthInterval = setInterval(() => {
+        open = !open;
+        if (open) {
+          mouth.setAttribute('d', 'M 82,106 Q 100,126 118,106 Z');
+          mouth.setAttribute('fill', '#0f172a');
+        } else {
+          mouth.setAttribute('d', 'M 86,108 Q 100,116 114,108');
+          mouth.setAttribute('fill', 'none');
+        }
+      }, 140);
+    }
+
+    function stopMouthAnimation() {
+      if (mouthInterval) clearInterval(mouthInterval);
+      mouth.setAttribute('d', 'M 85,108 Q 100,118 115,108');
+      mouth.setAttribute('fill', 'none');
+    }
+
+    function setSpeakingState(speaking, text = "") {
+      isSpeaking = speaking;
+      if (speaking) {
+        glow.classList.add('speaking');
+        container.classList.add('speaking');
+        statusBadge.classList.add('speaking');
+        statusText.textContent = "🔊 Petit Nuage parle dans Discord !";
+        cloudBody.setAttribute('fill', 'url(#speakingGrad)');
+        startMouthAnimation();
+        if (text) {
+          subtitleBox.textContent = `"${text}"`;
+          subtitleBox.classList.add('active');
+        }
+      } else {
+        glow.classList.remove('speaking');
+        container.classList.remove('speaking');
+        statusBadge.classList.remove('speaking');
+        statusText.textContent = "Petit Nuage ☁️ — En écoute";
+        cloudBody.setAttribute('fill', 'url(#cloudGrad)');
+        stopMouthAnimation();
+        subtitleBox.classList.remove('active');
+      }
+    }
+
+    // WebSocket Connection to Bot
+    function connectWS() {
+      const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${location.host}/ws`;
+      console.log("Connexion WebSocket à:", wsUrl);
+
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("Connecté au serveur de Petit Nuage");
+        statusText.textContent = "Petit Nuage ☁️ — Connecté";
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log("Événement reçu:", data);
+          if (data.type === "speaking") {
+            setSpeakingState(data.value, data.text || "");
+          }
+        } catch (e) {
+          console.error("Erreur de décodage WS:", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket déconnecté, nouvelle tentative dans 3s...");
+        statusText.textContent = "Reconnexion...";
+        setSpeakingState(false);
+        setTimeout(connectWS, 3000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("Erreur WS:", err);
+        ws.close();
+      };
+    }
+
+    connectWS();
+  </script>
+</body>
+</html>

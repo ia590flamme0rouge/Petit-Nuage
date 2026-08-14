@@ -7,9 +7,11 @@ import discord
 import discord.sinks
 from discord.ext import commands
 
-# Patch pour le bug connu de Pycord 2.8.1 (SinkEventRouter __sink_listeners__)
+# Patch pour les bugs connus de Pycord 2.8.1 avec SinkEventRouter
 if not hasattr(discord.sinks.Sink, "__sink_listeners__"):
     discord.sinks.Sink.__sink_listeners__ = []
+if not hasattr(discord.sinks.Sink, "walk_children"):
+    discord.sinks.Sink.walk_children = lambda self: []
 
 import config
 from image_generator import fetch_avatar_bytes, build_welcome_banner

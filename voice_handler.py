@@ -125,7 +125,7 @@ class VoiceHandler:
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
                 tmp_path = tmp.name
 
-            communicate = edge_tts.Communicate(text=text, voice=config.VOICE_TTS_VOICE, pitch="-5Hz")
+            communicate = edge_tts.Communicate(text=text, voice=config.VOICE_TTS_VOICE, pitch="-10Hz")
             await communicate.save(tmp_path)
 
             while voice_client.is_playing():

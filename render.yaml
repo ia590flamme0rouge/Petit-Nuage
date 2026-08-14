@@ -2,7 +2,7 @@ services:
   - type: worker
     name: discord-bot
     runtime: python
-    buildCommand: pip uninstall -y discord.py discord-ext-voice-recv && pip install --no-cache-dir -r requirements.txt
+    buildCommand: pip install --force-reinstall --no-cache-dir -r requirements.txt
     startCommand: python bot.py
     envVars:
       - key: PYTHON_VERSION

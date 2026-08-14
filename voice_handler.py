@@ -141,11 +141,18 @@ class VoiceHandler:
                     logger.error(f"Erreur lecture audio: {error}")
                 done_event.set()
 
+            if self.text_channel:
+                await self.text_channel.send("🔊 *Le bot parle dans le salon vocal...*")
+
+            logger.info(f"Début de lecture TTS dans le vocal pour: {text[:50]}...")
             voice_client.play(audio_source, after=after_play)
             await done_event.wait()
+            logger.info("Fin de lecture TTS.")
 
         except Exception as e:
             logger.error(f"Erreur TTS: {e}")
+            if self.text_channel:
+                await self.text_channel.send(f"⚠️ Erreur lors de la lecture vocale : `{e}`")
         finally:
             if tmp_path and os.path.exists(tmp_path):
                 try:

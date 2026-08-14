@@ -196,6 +196,7 @@ async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.
         await text_channel.send("⚠️ `GROQ_API_KEY` est manquante dans les variables d'environnement sur Render !")
         return
 
+    processed = False
     for user_id, audio in sink.audio_data.items():
         member = text_channel.guild.get_member(user_id)
         if member and member.bot:
@@ -205,10 +206,12 @@ async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.
         if len(wav_bytes) < 4000:
             continue
 
+        processed = True
         logger.info(f"Traitement de {len(wav_bytes)} octets audio pour user_id={user_id}...")
 
         transcript = await transcribe_audio(wav_bytes)
         if not transcript:
+            await text_channel.send("🔇 Audio capturé mais aucun mot n'a pu être transcrit.")
             continue
 
         display_name = member.display_name if member else f"Membre {user_id}"
@@ -221,6 +224,22 @@ async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.
             await text_channel.send(chunk)
 
         await voice_handler.speak(response, voice_client)
+
+    if not processed:
+        await text_channel.send("⚠️ Aucun audio capturé. Assurez-vous de parler dans votre micro avant de faire `!stop` !")
+
+    # Relance l'écoute automatiquement si le bot est toujours dans le vocal
+    if voice_client and voice_client.is_connected():
+        try:
+            voice_client.start_recording(
+                discord.sinks.WaveSink(),
+                on_recording_finished,
+                text_channel,
+                voice_client,
+            )
+            await text_channel.send("🎙️ *Écoute relancée !* Parlez puis faites `!stop` quand vous souhaitez une réponse.")
+        except Exception as e:
+            logger.error(f"Erreur relance enregistrement: {e}")
 
 
 @bot.command(name="leave")

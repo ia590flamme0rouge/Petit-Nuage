@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Petit Nuage ☁️ — Avatar Animé Synchronisé</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <title>Petit Nuage ☁️ — Avatar Bionique Synchronisé</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
     * {
       box-sizing: border-box;
@@ -13,7 +13,7 @@
     }
     body {
       font-family: 'Outfit', sans-serif;
-      background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+      background: radial-gradient(circle at center, #0a0e17 0%, #010204 100%);
       color: #f8fafc;
       min-height: 100vh;
       display: flex;
@@ -23,20 +23,37 @@
       overflow: hidden;
     }
 
+    /* Starfield backdrop like the reference image */
+    .stars {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background-image:
+        radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 10% 75%, rgba(255,255,255,0.35), transparent),
+        radial-gradient(1px 1px at 45% 85%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 60% 40%, rgba(255,255,255,0.3), transparent);
+      background-repeat: repeat;
+      background-size: 300px 300px;
+      opacity: 0.6;
+    }
+
     /* Ambient Background Glow */
     .glow-bg {
       position: absolute;
-      width: 400px;
-      height: 400px;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(139, 92, 246, 0.15) 50%, transparent 70%);
+      width: 460px;
+      height: 460px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, rgba(236, 72, 153, 0.12) 50%, transparent 70%);
       border-radius: 50%;
-      filter: blur(60px);
+      filter: blur(70px);
       z-index: 0;
       transition: transform 0.5s ease, background 0.5s ease;
     }
     .glow-bg.speaking {
-      transform: scale(1.4);
-      background: radial-gradient(circle, rgba(236, 72, 153, 0.35) 0%, rgba(56, 189, 248, 0.25) 50%, transparent 70%);
+      transform: scale(1.35);
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.32) 0%, rgba(56, 189, 248, 0.28) 50%, transparent 70%);
     }
 
     /* Container */
@@ -52,11 +69,11 @@
     /* Audio Waves Rings */
     .wave-rings {
       position: absolute;
-      top: 50%;
+      top: 46%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 280px;
-      height: 280px;
+      width: 340px;
+      height: 340px;
       border-radius: 50%;
       pointer-events: none;
     }
@@ -80,31 +97,55 @@
     }
 
     @keyframes pulse-ring {
-      0% { transform: scale(0.8); opacity: 0.8; border-color: rgba(236, 72, 153, 0.8); }
-      100% { transform: scale(1.6); opacity: 0; border-color: rgba(56, 189, 248, 0); }
+      0% { transform: scale(0.75); opacity: 0.8; border-color: rgba(236, 72, 153, 0.8); }
+      100% { transform: scale(1.5); opacity: 0; border-color: rgba(56, 189, 248, 0); }
     }
 
     /* Avatar Floating Graphic */
     .avatar-wrapper {
       position: relative;
-      width: 240px;
-      height: 240px;
-      animation: float 4s ease-in-out infinite;
+      width: 320px;
+      height: 320px;
+      animation: float 4.5s ease-in-out infinite;
     }
     @keyframes float {
       0%, 100% { transform: translateY(0px) rotate(0deg); }
-      50% { transform: translateY(-12px) rotate(1deg); }
+      50% { transform: translateY(-10px) rotate(0.5deg); }
     }
 
     /* SVG Character */
-    svg#cloud-avatar {
+    svg#bionic-avatar {
       width: 100%;
       height: 100%;
-      filter: drop-shadow(0 15px 35px rgba(56, 189, 248, 0.3));
+      filter: drop-shadow(0 20px 45px rgba(56, 189, 248, 0.35));
       transition: filter 0.3s ease;
     }
-    .speaking svg#cloud-avatar {
-      filter: drop-shadow(0 20px 45px rgba(236, 72, 153, 0.5));
+    .speaking svg#bionic-avatar {
+      filter: drop-shadow(0 25px 55px rgba(236, 72, 153, 0.55));
+    }
+
+    /* Subtle rotation on the mechanical rings */
+    .ring-slow {
+      transform-origin: 100px 90px;
+      animation: spin-slow 40s linear infinite;
+    }
+    .ring-slow-rev {
+      transform-origin: 100px 90px;
+      animation: spin-slow-rev 55s linear infinite;
+    }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes spin-slow-rev {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+
+    /* Mouth LED segments pulse when speaking */
+    .mouth-seg {
+      transition: opacity 0.08s ease, fill 0.15s ease;
+      opacity: 0.18;
     }
 
     /* Status Badge */
@@ -112,7 +153,7 @@
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      background: rgba(15, 23, 42, 0.75);
+      background: rgba(10, 14, 23, 0.75);
       backdrop-filter: blur(12px);
       padding: 0.75rem 1.5rem;
       border-radius: 9999px;
@@ -148,24 +189,27 @@
     .subtitle-box {
       max-width: 500px;
       text-align: center;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
+      font-family: 'Share Tech Mono', monospace;
       color: #94a3b8;
       line-height: 1.5;
       min-height: 3rem;
       transition: opacity 0.3s ease, color 0.3s ease;
     }
     .subtitle-box.active {
-      color: #e2e8f0;
+      color: #7dd3fc;
       font-weight: 600;
+      text-shadow: 0 0 12px rgba(125, 211, 252, 0.4);
     }
   </style>
 </head>
 <body>
 
+  <div class="stars"></div>
   <div class="glow-bg" id="glow"></div>
 
   <div class="avatar-container" id="avatar-container">
-    
+
     <div class="wave-rings">
       <div class="wave-ring"></div>
       <div class="wave-ring"></div>
@@ -173,49 +217,290 @@
     </div>
 
     <div class="avatar-wrapper">
-      <svg idcloud-avatar viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <svg id="bionic-avatar" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#38bdf8" />
-            <stop offset="100%" stop-color="#8b5cf6" />
+          <!-- ===== IRIS: deep glass lens, cyan core -> magenta rim ===== -->
+          <radialGradient id="irisGrad" cx="42%" cy="38%" r="62%">
+            <stop offset="0%"  stop-color="#082a33" />
+            <stop offset="18%" stop-color="#031014" />
+            <stop offset="34%" stop-color="#020617" />
+            <stop offset="48%" stop-color="#0891b2" />
+            <stop offset="62%" stop-color="#22d3ee" />
+            <stop offset="80%" stop-color="#c026d3" />
+            <stop offset="100%" stop-color="#831843" />
+          </radialGradient>
+          <radialGradient id="irisGradSpeaking" cx="42%" cy="38%" r="62%">
+            <stop offset="0%"  stop-color="#3b0a24" />
+            <stop offset="18%" stop-color="#140208" />
+            <stop offset="34%" stop-color="#020617" />
+            <stop offset="48%" stop-color="#be185d" />
+            <stop offset="62%" stop-color="#f472b6" />
+            <stop offset="80%" stop-color="#a855f7" />
+            <stop offset="100%" stop-color="#581c87" />
+          </radialGradient>
+          <!-- glass dome highlight over the iris -->
+          <radialGradient id="lensSheen" cx="34%" cy="26%" r="40%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+            <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+          </radialGradient>
+          <!-- eye socket recess shadow -->
+          <radialGradient id="socketShadow" cx="50%" cy="50%" r="50%">
+            <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+            <stop offset="88%" stop-color="#000000" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#000000" stop-opacity="0.85"/>
+          </radialGradient>
+          <!-- chrome bezel ring around each eye, multi-stop for real specular feel -->
+          <linearGradient id="bezelChrome" x1="15%" y1="10%" x2="85%" y2="95%">
+            <stop offset="0%"  stop-color="#e2e8f0" />
+            <stop offset="14%" stop-color="#94a3b8" />
+            <stop offset="30%" stop-color="#334155" />
+            <stop offset="50%" stop-color="#1e293b" />
+            <stop offset="68%" stop-color="#475569" />
+            <stop offset="85%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#020617" />
           </linearGradient>
-          <linearGradient id="speakingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#f43f5e" />
-            <stop offset="100%" stop-color="#a855f7" />
+          <linearGradient id="bezelChromeInner" x1="20%" y1="15%" x2="80%" y2="90%">
+            <stop offset="0%" stop-color="#0f172a"/>
+            <stop offset="50%" stop-color="#334155"/>
+            <stop offset="100%" stop-color="#020617"/>
           </linearGradient>
-          <filter id="glow-filter" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+
+          <!-- ===== HEAD SHELL: brushed gunmetal with top-down key light ===== -->
+          <linearGradient id="metalGrad" x1="30%" y1="0%" x2="70%" y2="100%">
+            <stop offset="0%"  stop-color="#94a3b8" />
+            <stop offset="10%" stop-color="#64748b" />
+            <stop offset="30%" stop-color="#334155" />
+            <stop offset="55%" stop-color="#1e293b" />
+            <stop offset="80%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#020617" />
+          </linearGradient>
+          <!-- rim light wrapping the silhouette edge -->
+          <linearGradient id="rimLight" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#7dd3fc" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#7dd3fc" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="rimLightR" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#f0abfc" stop-opacity="0.7"/>
+            <stop offset="100%" stop-color="#f0abfc" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="crownHighlight" cx="50%" cy="0%" r="60%">
+            <stop offset="0%" stop-color="#cbd5e1" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#cbd5e1" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="metalGradLight" x1="20%" y1="10%" x2="80%" y2="90%">
+            <stop offset="0%" stop-color="#f1f5f9" />
+            <stop offset="35%" stop-color="#94a3b8" />
+            <stop offset="70%" stop-color="#475569" />
+            <stop offset="100%" stop-color="#1e293b" />
+          </linearGradient>
+          <linearGradient id="jawGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#334155" />
+            <stop offset="12%" stop-color="#1e293b" />
+            <stop offset="100%" stop-color="#010204" />
+          </linearGradient>
+          <linearGradient id="jawInnerShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#000000" stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="#000000" stop-opacity="0.15"/>
+          </linearGradient>
+          <linearGradient id="cableGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#cbd5e1"/>
+            <stop offset="100%" stop-color="#334155"/>
+          </linearGradient>
+
+          <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="2.4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
           </filter>
+          <filter id="strongGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="dropShadowSoft" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+          </filter>
+          <filter id="metalTexture" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="noise" seed="7"/>
+            <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.03 0"/>
+          </filter>
+          <clipPath id="eyeClip"><circle r="27"/></clipPath>
         </defs>
 
-        <!-- Cloud Body -->
-        <path id="cloud-body" fill="url(#cloudGrad)" d="
-          M 50,130
-          A 35,35 0 0,1 40,75
-          A 40,40 0 0,1 100,50
-          A 45,45 0 0,1 165,80
-          A 35,35 0 0,1 150,135
-          Z" />
+        <!-- Ground contact shadow -->
+        <ellipse cx="100" cy="182" rx="62" ry="10" fill="#000000" opacity="0.4" filter="url(#softGlow)"/>
 
-        <!-- Eyes Left & Right -->
-        <g id="eyes">
-          <ellipse id="eye-left" cx="75" cy="92" rx="7" ry="10" fill="#ffffff" />
-          <ellipse id="eye-right" cx="125" cy="92" rx="7" ry="10" fill="#ffffff" />
-          <!-- Pupils -->
-          <circle cx="76" cy="93" r="4" fill="#0f172a" />
-          <circle cx="126" cy="93" r="4" fill="#0f172a" />
-          <!-- Eye highlights -->
-          <circle cx="74" cy="90" r="1.5" fill="#ffffff" />
-          <circle cx="124" cy="90" r="1.5" fill="#ffffff" />
+        <!-- ============ HEAD SHELL (3D shaded) ============ -->
+        <g filter="url(#dropShadowSoft)">
+          <path id="head-shell" fill="url(#metalGrad)" stroke="#020617" stroke-width="1.2"
+            d="M 100,16
+               C 148,16 174,40 178,78
+               C 181,104 176,122 168,140
+               C 159,160 136,174 100,177
+               C 64,174 41,160 32,140
+               C 24,122 19,104 22,78
+               C 26,40 52,16 100,16 Z" />
+          <!-- procedural micro-texture for brushed metal -->
+          <path d="M 100,16 C 148,16 174,40 178,78 C 181,104 176,122 168,140 C 159,160 136,174 100,177 C 64,174 41,160 32,140 C 24,122 19,104 22,78 C 26,40 52,16 100,16 Z"
+            fill="url(#metalGrad)" filter="url(#metalTexture)" opacity="0.5"/>
+          <!-- crown highlight, key light from above -->
+          <ellipse cx="100" cy="40" rx="70" ry="34" fill="url(#crownHighlight)"/>
+          <!-- left rim light -->
+          <path d="M 32,140 C 24,122 19,104 22,78 C 26,40 52,16 100,16" fill="none" stroke="url(#rimLight)" stroke-width="3" opacity="0.8" stroke-linecap="round"/>
+          <!-- right rim light (cooler/pink bounce) -->
+          <path d="M 168,140 C 176,122 181,104 178,78 C 174,40 148,16 100,16" fill="none" stroke="url(#rimLightR)" stroke-width="2.5" opacity="0.55" stroke-linecap="round"/>
+          <!-- under-chin ambient occlusion -->
+          <path d="M 38,132 C 55,155 145,155 162,132 C 155,168 130,180 100,182 C 70,180 45,168 38,132 Z" fill="#000000" opacity="0.35"/>
         </g>
 
-        <!-- Cheeks -->
-        <circle cx="62" cy="105" r="7" fill="rgba(255, 255, 255, 0.25)" />
-        <circle cx="138" cy="105" r="7" fill="rgba(255, 255, 255, 0.25)" />
+        <!-- Panel seams for a mechanical look, engraved -->
+        <path d="M 30,80 C 54,73 146,73 170,80" fill="none" stroke="#000000" stroke-width="2" opacity="0.55"/>
+        <path d="M 30,81.6 C 54,74.6 146,74.6 170,81.6" fill="none" stroke="#7dd3fc" stroke-width="0.6" opacity="0.35"/>
+        <path d="M 36,131 C 59,141 141,141 164,131" fill="none" stroke="#000000" stroke-width="2" opacity="0.5"/>
+        <path d="M 36,132.4 C 59,142.4 141,142.4 164,132.4" fill="none" stroke="#7dd3fc" stroke-width="0.5" opacity="0.25"/>
+        <path d="M 100,16 L 100,32" stroke="#000000" stroke-width="1.8" opacity="0.5"/>
 
-        <!-- Mouth Path (Dynamically animated) -->
-        <path id="mouth" d="M 85,108 Q 100,118 115,108" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" />
+        <!-- Rivets with 3D bevel -->
+        <g>
+          <circle cx="29" cy="68" r="2.6" fill="#0f172a"/>
+          <circle cx="28.5" cy="67.3" r="1.6" fill="#cbd5e1"/>
+          <circle cx="171" cy="68" r="2.6" fill="#0f172a"/>
+          <circle cx="170.5" cy="67.3" r="1.6" fill="#cbd5e1"/>
+          <circle cx="24" cy="104" r="2.6" fill="#0f172a"/>
+          <circle cx="23.5" cy="103.3" r="1.6" fill="#cbd5e1"/>
+          <circle cx="176" cy="104" r="2.6" fill="#0f172a"/>
+          <circle cx="175.5" cy="103.3" r="1.6" fill="#cbd5e1"/>
+        </g>
+
+        <!-- Antenna / cables coming off the sides -->
+        <g fill="none" stroke-linecap="round">
+          <path d="M 22,64 C 12,56 6,48 2,38" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 22,64 C 12,56 6,48 2,38" stroke="url(#cableGrad)" stroke-width="2.4"/>
+          <path d="M 20,86 C 10,84 4,82 -2,78" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 20,86 C 10,84 4,82 -2,78" stroke="url(#cableGrad)" stroke-width="2.4"/>
+          <path d="M 178,64 C 188,56 194,48 198,38" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 178,64 C 188,56 194,48 198,38" stroke="url(#cableGrad)" stroke-width="2.4"/>
+          <path d="M 180,86 C 190,84 196,82 202,78" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 180,86 C 190,84 196,82 202,78" stroke="url(#cableGrad)" stroke-width="2.4"/>
+        </g>
+        <g>
+          <circle cx="2" cy="38" r="3.4" fill="#0f172a"/><circle cx="1.4" cy="37.3" r="1.8" fill="#e2e8f0"/>
+          <circle cx="-2" cy="78" r="3.4" fill="#0f172a"/><circle cx="-2.6" cy="77.3" r="1.8" fill="#e2e8f0"/>
+          <circle cx="198" cy="38" r="3.4" fill="#0f172a"/><circle cx="197.4" cy="37.3" r="1.8" fill="#e2e8f0"/>
+          <circle cx="202" cy="78" r="3.4" fill="#0f172a"/><circle cx="201.4" cy="77.3" r="1.8" fill="#e2e8f0"/>
+        </g>
+
+        <!-- ============ EYES (bionic glass lens, deep 3D) ============ -->
+        <g id="eyes">
+          <!-- LEFT EYE -->
+          <g id="eye-left-group" transform="translate(65,80)">
+            <circle r="31" fill="url(#socketShadow)"/>
+            <circle r="27" fill="url(#bezelChrome)"/>
+            <circle r="27" fill="none" stroke="#020617" stroke-width="1"/>
+            <g class="ring-slow">
+              <circle r="24.5" fill="none" stroke="#020617" stroke-width="5.5" stroke-dasharray="2.5 4.5" opacity="0.7"/>
+              <circle r="24.5" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2.5 4.5" opacity="0.4" transform="translate(0.5,-0.5)"/>
+            </g>
+            <circle r="21.5" fill="url(#bezelChromeInner)"/>
+            <circle r="20" fill="#010204"/>
+            <g id="iris-left" filter="url(#strongGlow)">
+              <circle r="18" fill="url(#irisGrad)" />
+              <g stroke="#67e8f9" stroke-width="0.35" opacity="0.35">
+                <line x1="0" y1="0" x2="0" y2="-17"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(155)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-155)"/>
+                <line x1="0" y1="0" x2="0" y2="17" transform="rotate(180)"/>
+              </g>
+              <circle id="pupil-left" r="7.5" fill="#000000"/>
+              <circle id="pupil-left-rim" r="7.5" fill="none" stroke="#22d3ee" stroke-width="0.5" opacity="0.6"/>
+            </g>
+            <circle r="18" fill="url(#lensSheen)"/>
+            <circle cx="-6" cy="-8" r="2.2" fill="#ffffff" opacity="0.95"/>
+            <circle cx="4" cy="6" r="1" fill="#ffffff" opacity="0.5"/>
+            <g clip-path="url(#eyeClip)">
+              <rect id="lid-left" x="-30" y="-30" width="60" height="0" fill="#0a0e17"/>
+            </g>
+          </g>
+
+          <!-- RIGHT EYE -->
+          <g id="eye-right-group" transform="translate(135,80)">
+            <circle r="31" fill="url(#socketShadow)"/>
+            <circle r="27" fill="url(#bezelChrome)"/>
+            <circle r="27" fill="none" stroke="#020617" stroke-width="1"/>
+            <g class="ring-slow-rev">
+              <circle r="24.5" fill="none" stroke="#020617" stroke-width="5.5" stroke-dasharray="2.5 4.5" opacity="0.7"/>
+              <circle r="24.5" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2.5 4.5" opacity="0.4" transform="translate(0.5,-0.5)"/>
+            </g>
+            <circle r="21.5" fill="url(#bezelChromeInner)"/>
+            <circle r="20" fill="#010204"/>
+            <g id="iris-right" filter="url(#strongGlow)">
+              <circle r="18" fill="url(#irisGrad)" />
+              <g stroke="#67e8f9" stroke-width="0.35" opacity="0.35">
+                <line x1="0" y1="0" x2="0" y2="-17"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(155)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-155)"/>
+                <line x1="0" y1="0" x2="0" y2="17" transform="rotate(180)"/>
+              </g>
+              <circle id="pupil-right" r="7.5" fill="#000000"/>
+              <circle id="pupil-right-rim" r="7.5" fill="none" stroke="#22d3ee" stroke-width="0.5" opacity="0.6"/>
+            </g>
+            <circle r="18" fill="url(#lensSheen)"/>
+            <circle cx="-6" cy="-8" r="2.2" fill="#ffffff" opacity="0.95"/>
+            <circle cx="4" cy="6" r="1" fill="#ffffff" opacity="0.5"/>
+            <g clip-path="url(#eyeClip)">
+              <rect id="lid-right" x="-30" y="-30" width="60" height="0" fill="#0a0e17"/>
+            </g>
+          </g>
+        </g>
+
+        <!-- Brow ridge / sensor line -->
+        <path d="M 42,54 C 64,45 136,45 158,54" fill="none" stroke="#000000" stroke-width="3.2" opacity="0.6" stroke-linecap="round"/>
+        <path d="M 42,52.6 C 64,43.6 136,43.6 158,52.6" fill="none" stroke="#64748b" stroke-width="1.4" opacity="0.5" stroke-linecap="round"/>
+        <circle id="brow-led" cx="100" cy="48" r="2.6" fill="#22d3ee" opacity="0.8" filter="url(#softGlow)"/>
+
+        <!-- ============ MOUTH (LED vocoder bar) ============ -->
+        <g id="mouth-group" transform="translate(100,142)">
+          <rect x="-40" y="-12" width="80" height="24" rx="12" fill="#000000" opacity="0.5" filter="url(#softGlow)"/>
+          <rect x="-38" y="-10" width="76" height="20" rx="10" fill="url(#jawGrad)" stroke="#000000" stroke-width="1.5"/>
+          <rect x="-38" y="-10" width="76" height="8" rx="6" fill="url(#jawInnerShadow)"/>
+          <rect x="-37" y="8.4" width="74" height="1.2" rx="0.6" fill="#64748b" opacity="0.4"/>
+          <g id="mouth-segments">
+            <rect class="mouth-seg" data-i="0" x="-32" y="-3" width="6" height="6" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="1" x="-23" y="-4" width="6" height="8" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="2" x="-14" y="-5" width="6" height="10" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="3" x="-5"  y="-6" width="6" height="12" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="4" x="4"   y="-6" width="6" height="12" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="5" x="13"  y="-5" width="6" height="10" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="6" x="22"  y="-4" width="6" height="8"  rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="7" x="31"  y="-3" width="6" height="6"  rx="1.5" fill="#38bdf8"/>
+          </g>
+        </g>
+
+        <!-- Jaw seam -->
+        <path d="M 46,150 C 64,163 136,163 154,150" fill="none" stroke="#000000" stroke-width="2.2" opacity="0.6"/>
+        <path d="M 46,151.6 C 64,164.6 136,164.6 154,151.6" fill="none" stroke="#64748b" stroke-width="0.6" opacity="0.3"/>
       </svg>
     </div>
 
@@ -236,48 +521,62 @@
     const statusBadge = document.getElementById('status-badge');
     const statusText = document.getElementById('status-text');
     const subtitleBox = document.getElementById('subtitle-box');
-    const mouth = document.getElementById('mouth');
-    const eyeLeft = document.getElementById('eye-left');
-    const eyeRight = document.getElementById('eye-right');
-    const cloudBody = document.getElementById('cloud-body');
+    const mouthSegs = Array.from(document.querySelectorAll('.mouth-seg'));
+    const lidLeft = document.getElementById('lid-left');
+    const lidRight = document.getElementById('lid-right');
+    const irisLeft = document.getElementById('iris-left');
+    const irisRight = document.getElementById('iris-right');
+    const pupilLeft = document.getElementById('pupil-left');
+    const pupilRight = document.getElementById('pupil-right');
+    const browLed = document.getElementById('brow-led');
 
     let isSpeaking = false;
     let mouthInterval = null;
+    let idleGazeInterval = null;
 
-    // Natural Eye Blinking
+    // ---------- Blinking (bionic eyelid slides down over the eye) ----------
     function triggerBlink() {
-      eyeLeft.setAttribute('ry', '1');
-      eyeRight.setAttribute('ry', '1');
+      lidLeft.setAttribute('height', '54');
+      lidRight.setAttribute('height', '54');
       setTimeout(() => {
-        eyeLeft.setAttribute('ry', '10');
-        eyeRight.setAttribute('ry', '10');
-      }, 150);
+        lidLeft.setAttribute('height', '0');
+        lidRight.setAttribute('height', '0');
+      }, 130);
 
-      const nextBlink = Math.random() * 4000 + 2000;
+      const nextBlink = Math.random() * 4000 + 2200;
       setTimeout(triggerBlink, nextBlink);
     }
-    setTimeout(triggerBlink, 2000);
+    setTimeout(triggerBlink, 1800);
 
-    // Mouth Animation for Lip-Sync
+    // ---------- Subtle idle pupil drift ----------
+    function idleGaze() {
+      const dx = (Math.random() - 0.5) * 6;
+      const dy = (Math.random() - 0.5) * 4;
+      pupilLeft.setAttribute('cx', dx);
+      pupilLeft.setAttribute('cy', dy);
+      pupilRight.setAttribute('cx', dx);
+      pupilRight.setAttribute('cy', dy);
+    }
+    idleGazeInterval = setInterval(idleGaze, 2600);
+
+    // ---------- Mouth "vocoder bar" animation for lip-sync ----------
     function startMouthAnimation() {
       if (mouthInterval) clearInterval(mouthInterval);
-      let open = false;
       mouthInterval = setInterval(() => {
-        open = !open;
-        if (open) {
-          mouth.setAttribute('d', 'M 82,106 Q 100,126 118,106 Z');
-          mouth.setAttribute('fill', '#0f172a');
-        } else {
-          mouth.setAttribute('d', 'M 86,108 Q 100,116 114,108');
-          mouth.setAttribute('fill', 'none');
-        }
-      }, 140);
+        mouthSegs.forEach((seg) => {
+          const level = Math.random();
+          seg.style.opacity = (0.35 + level * 0.65).toFixed(2);
+          seg.setAttribute('fill', level > 0.6 ? '#f472b6' : '#38bdf8');
+        });
+      }, 90);
     }
 
     function stopMouthAnimation() {
       if (mouthInterval) clearInterval(mouthInterval);
-      mouth.setAttribute('d', 'M 85,108 Q 100,118 115,108');
-      mouth.setAttribute('fill', 'none');
+      mouthSegs.forEach((seg) => {
+        seg.style.opacity = '0.18';
+        seg.setAttribute('fill', '#38bdf8');
+      });
     }
 
     function setSpeakingState(speaking, text = "") {
@@ -287,7 +586,9 @@
         container.classList.add('speaking');
         statusBadge.classList.add('speaking');
         statusText.textContent = "🔊 Petit Nuage parle dans Discord !";
-        cloudBody.setAttribute('fill', 'url(#speakingGrad)');
+        irisLeft.querySelector('circle').setAttribute('fill', 'url(#irisGradSpeaking)');
+        irisRight.querySelector('circle').setAttribute('fill', 'url(#irisGradSpeaking)');
+        browLed.setAttribute('fill', '#f472b6');
         startMouthAnimation();
         if (text) {
           subtitleBox.textContent = `"${text}"`;
@@ -298,13 +599,15 @@
         container.classList.remove('speaking');
         statusBadge.classList.remove('speaking');
         statusText.textContent = "Petit Nuage ☁️ — En écoute";
-        cloudBody.setAttribute('fill', 'url(#cloudGrad)');
+        irisLeft.querySelector('circle').setAttribute('fill', 'url(#irisGrad)');
+        irisRight.querySelector('circle').setAttribute('fill', 'url(#irisGrad)');
+        browLed.setAttribute('fill', '#22d3ee');
         stopMouthAnimation();
         subtitleBox.classList.remove('active');
       }
     }
 
-    // WebSocket Connection to Bot
+    // ---------- WebSocket Connection to Bot ----------
     function connectWS() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${location.host}/ws`;

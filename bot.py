@@ -163,8 +163,10 @@ async def join_cmd(ctx: commands.Context):
         vc = ctx.guild.voice_client
         if vc:
             try:
-                if getattr(vc, "recording", False):
+                try:
                     vc.stop_recording()
+                except Exception:
+                    pass
 
                 vc.start_recording(
                     discord.sinks.WaveSink(),
@@ -173,7 +175,7 @@ async def join_cmd(ctx: commands.Context):
                     vc,
                 )
                 logger.info("Enregistrement vocal Py-cord DAVE demarre.")
-                await ctx.send("🎙️ **J'écoute le salon vocal !** Parlez, puis faites `!stop` (ou `!leave`) quand vous avez fini pour que je réponde.")
+                await ctx.send("🎙️ **J'écoute le salon vocal !** Parlez, puis faites `!stop` quand vous avez fini pour que je réponde.")
             except Exception as e:
                 logger.error(f"Erreur lors de start_recording: {e}", exc_info=True)
                 await ctx.send(f"⚠️ Erreur démarrage écoute : `{e}`")
@@ -183,11 +185,15 @@ async def join_cmd(ctx: commands.Context):
 async def stop_cmd(ctx: commands.Context):
     """Arrete l'enregistrement vocal et traite ce qui a ete dit."""
     vc = ctx.guild.voice_client
-    if vc and getattr(vc, "recording", False):
-        vc.stop_recording()
-        await ctx.send("⏹️ Traitement de votre message vocal en cours...")
+    if vc:
+        try:
+            vc.stop_recording()
+            await ctx.send("⏹️ Traitement de votre message vocal en cours...")
+        except Exception as e:
+            logger.warning(f"Stop recording exception: {e}")
+            await ctx.send("⚠️ Aucun enregistrement en cours ou déjà arrêté.")
     else:
-        await ctx.send("Aucun enregistrement vocal en cours.")
+        await ctx.send("Le bot n'est pas dans un salon vocal.")
 
 
 async def on_recording_finished(sink: discord.sinks.Sink, text_channel: discord.TextChannel, voice_client: discord.VoiceClient, *args):

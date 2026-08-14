@@ -26,6 +26,8 @@ class VoiceHandler:
     def __init__(self):
         # Salon textuel lie au salon vocal (pour renvoyer les transcriptions)
         self.text_channel: Optional[discord.TextChannel] = None
+        # Voice client actif
+        self.voice_client: Optional[discord.VoiceClient] = None
         # File TTS pour eviter les chevauchements
         self._tts_queue: asyncio.Queue = asyncio.Queue()
         self._tts_worker_task: Optional[asyncio.Task] = None
@@ -54,8 +56,9 @@ class VoiceHandler:
             await member.guild.voice_client.disconnect()
 
         try:
-            await voice_channel.connect()
+            vc = await voice_channel.connect()
             self.text_channel = text_channel
+            self.voice_client = vc
             logger.info(f"Bot connecte au salon vocal: {voice_channel.name}")
             await text_channel.send(f"Je rejoins **{voice_channel.name}** ! Activation de l'écoute vocale...")
             # Demarrer le worker TTS si besoin
@@ -72,6 +75,7 @@ class VoiceHandler:
         if vc:
             await vc.disconnect()
             self.text_channel = None
+            self.voice_client = None
             await text_channel.send("Bonne conversation ! Je quitte le salon vocal.")
             logger.info("Bot deconnecte du salon vocal.")
         else:

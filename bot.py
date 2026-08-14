@@ -198,7 +198,7 @@ async def stop_cmd(ctx: commands.Context):
 
 async def on_recording_finished(sink: discord.sinks.Sink, *args):
     """Callback execute quand l'enregistrement vocal se termine."""
-    voice_client = getattr(sink, "vc", None) or (args[0] if args else None)
+    voice_client = voice_handler.voice_client
     text_channel = voice_handler.text_channel
 
     if not text_channel:

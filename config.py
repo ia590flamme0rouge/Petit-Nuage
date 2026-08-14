@@ -32,7 +32,7 @@ AI_MODEL = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
 
 # --- Configuration Voix ---
 VOICE_ENABLED = os.getenv("VOICE_ENABLED", "true").lower() in ("true", "1", "yes")
-VOICE_TTS_VOICE = os.getenv("VOICE_TTS_VOICE", "fr-FR-DeniseNeural")  # Voix fr naturelle
+VOICE_TTS_VOICE = os.getenv("VOICE_TTS_VOICE", "fr-FR-HenriNeural")  # Voix fr masculine grave et naturelle
 VOICE_TEXT_CHANNEL_ID = int(os.getenv("VOICE_TEXT_CHANNEL_ID", 0))  # Salon où envoyer les transcriptions (0 = même salon que la commande !join)
 VOICE_SILENCE_DURATION = float(os.getenv("VOICE_SILENCE_DURATION", "1.5"))  # Secondes de silence avant traitement
 

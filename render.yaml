@@ -1,0 +1,9 @@
+services:
+  - type: worker
+    name: discord-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt && pip install git+https://github.com/imayhaveborkedit/discord-ext-voice-recv
+    startCommand: python bot.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12

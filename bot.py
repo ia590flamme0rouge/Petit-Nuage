@@ -277,11 +277,10 @@ async def run_web_server():
 
 
 async def main():
-    async with bot:
-        await asyncio.gather(
-            run_web_server(),
-            bot.start(config.BOT_TOKEN),
-        )
+    await asyncio.gather(
+        run_web_server(),
+        bot.start(config.BOT_TOKEN),
+    )
 
 
 if __name__ == "__main__":

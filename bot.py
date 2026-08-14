@@ -218,12 +218,14 @@ async def on_recording_finished(sink: discord.sinks.Sink, *args):
 
     processed = False
     for user_id, audio in sink.audio_data.items():
-        guild = text_channel.guild if text_channel else None
-        member = guild.get_member(user_id) if guild else None
+        member = text_channel.guild.get_member(user_id) if text_channel else None
         if member and member.bot:
             continue
 
+        audio.file.seek(0)
         wav_bytes = audio.file.read()
+        logger.info(f"Taille de l'audio enregistré pour user_id={user_id}: {len(wav_bytes)} octets")
+
         if len(wav_bytes) < 4000:
             continue
 

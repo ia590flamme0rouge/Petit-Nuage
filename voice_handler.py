@@ -141,23 +141,28 @@ class VoiceHandler:
                     logger.error(f"Erreur lecture audio: {error}")
                 done_event.set()
 
-            if self.text_channel:
-                await self.text_channel.send("🔊 *Le bot parle dans le salon vocal...*")
+            # Lancer la lecture audio et l'événement WebSocket AU MÊME MILLISECONDE
+            logger.info(f"Début de lecture TTS dans le vocal pour: {text[:50]}...")
+            voice_client.play(audio_source, after=after_play)
 
+            # Événement Avatar immédiat sans délai HTTP
             try:
                 from bot import broadcast_avatar_event
-                await broadcast_avatar_event({"type": "speaking", "value": True, "text": text})
+                asyncio.create_task(broadcast_avatar_event({"type": "speaking", "value": True, "text": text}))
             except Exception:
                 pass
 
-            logger.info(f"Début de lecture TTS dans le vocal pour: {text[:50]}...")
-            voice_client.play(audio_source, after=after_play)
+            if self.text_channel:
+                asyncio.create_task(self.text_channel.send("🔊 *Le bot parle dans le salon vocal...*"))
+
+            # Attendre la fin exacte de la lecture audio
             await done_event.wait()
             logger.info("Fin de lecture TTS.")
 
+            # Stopper l'animation Avatar immédiatement
             try:
                 from bot import broadcast_avatar_event
-                await broadcast_avatar_event({"type": "speaking", "value": False})
+                asyncio.create_task(broadcast_avatar_event({"type": "speaking", "value": False}))
             except Exception:
                 pass
 

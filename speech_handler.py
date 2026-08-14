@@ -1,4 +1,4 @@
-﻿"""
+"""
 speech_handler.py - Reconnaissance vocale (STT) via Whisper API (Groq)
 Utilise discord-ext-voice-recv pour capter l'audio de chaque membre.
 """
@@ -104,13 +104,18 @@ class VoiceSink(voice_recv.AudioSink):
 
         self._buffers[uid].extend(data.pcm)
 
-        # Annule le timer precedent et en recrée un
-        if uid in self._silence_tasks and not self._silence_tasks[uid].done():
-            self._silence_tasks[uid].cancel()
+        # Annule le timer precedent
+        old = self._silence_tasks.get(uid)
+        if old is not None and not old.done():
+            old.cancel()
 
-        self._silence_tasks[uid] = asyncio.create_task(
-            self._silence_timer(uid, user)
+        # IMPORTANT: write() est appele depuis le thread audio (pas l'event loop)
+        # On doit utiliser run_coroutine_threadsafe au lieu de create_task
+        loop = self.voice_client.client.loop
+        future = asyncio.run_coroutine_threadsafe(
+            self._silence_timer(uid, user), loop
         )
+        self._silence_tasks[uid] = future
 
     async def _silence_timer(self, uid: int, user):
         """Attend la duree de silence puis declenche le traitement."""
@@ -130,3 +135,4 @@ class VoiceSink(voice_recv.AudioSink):
                 task.cancel()
         self._buffers.clear()
         self._silence_tasks.clear()
+

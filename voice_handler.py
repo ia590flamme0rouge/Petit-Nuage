@@ -1,4 +1,4 @@
-﻿"""
+"""
 voice_handler.py — Synthese vocale (TTS) et gestion des connexions vocales Discord
 Utilise edge-tts (Microsoft, gratuit) pour generer des voix naturelles en francais
 """
@@ -131,7 +131,9 @@ class VoiceHandler:
                 await asyncio.sleep(0.1)
 
             # Jouer le MP3
-            audio_source = discord.FFmpegPCMAudio(tmp_path)
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            audio_source = discord.FFmpegPCMAudio(tmp_path, executable=ffmpeg_exe)
             done_event = asyncio.Event()
 
             def after_play(error):

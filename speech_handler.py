@@ -1,16 +1,13 @@
 """
 speech_handler.py - Reconnaissance vocale (STT) via Whisper API (Groq)
-Utilise discord-ext-voice-recv pour capter l'audio de chaque membre.
+Compatible Py-cord (format WAV natif)
 """
-import asyncio
 import io
 import logging
 import wave
-from typing import Callable, Dict, Optional
+from typing import Optional
 
 import aiohttp
-import discord
-from discord.ext import voice_recv
 
 import config
 
@@ -43,7 +40,7 @@ async def transcribe_audio(audio_bytes: bytes) -> Optional[str]:
         logger.debug(f"Audio trop court ({len(audio_bytes)} octets), ignore.")
         return None
 
-    # Si ce n'est pas deja du WAV, convertit du PCM en WAV
+    # Si ce n'est pas deja du WAV (entête RIFF), convertit du PCM en WAV
     if not audio_bytes.startswith(b"RIFF"):
         wav_bytes = pcm_to_wav_bytes(audio_bytes)
     else:
@@ -76,75 +73,3 @@ async def transcribe_audio(audio_bytes: bytes) -> Optional[str]:
     except Exception as e:
         logger.error(f"Erreur lors de la transcription audio: {e}")
         return None
-
-
-class VoiceSink(voice_recv.AudioSink):
-    """
-    Sink qui accumule l'audio PCM de chaque membre et declenche
-    le callback on_speech apres un silence de silence_duration secondes.
-    """
-
-    def __init__(
-        self,
-        on_speech: Callable,
-        silence_duration: float = 1.5,
-        loop: Optional[asyncio.AbstractEventLoop] = None,
-    ):
-        super().__init__()
-        self.on_speech = on_speech
-        self.silence_duration = silence_duration
-        self.loop = loop
-        self._buffers: Dict[Union[int, str], bytearray] = {}
-        self._silence_tasks: Dict[Union[int, str], Any] = {}
-
-    def wants_opus(self) -> bool:
-        return False  # On veut du PCM decode
-
-    def write(self, user, data: voice_recv.VoiceData):
-        if user and user.bot:
-            return
-
-        if not data or not data.pcm:
-            return
-
-        # Si user n'est pas encore resolu par SSRC, utilise le SSRC du paquet comme cle
-        key = user.id if user else f"ssrc_{data.packet.ssrc}"
-
-        if key not in self._buffers:
-            self._buffers[key] = bytearray()
-
-        self._buffers[key].extend(data.pcm)
-
-        # Annule le timer precedent
-        old = self._silence_tasks.get(key)
-        if old is not None and not old.done():
-            old.cancel()
-
-        # write() est appele depuis le thread audio -> run_coroutine_threadsafe
-        target_loop = self.loop or (self.voice_client and self.voice_client.client.loop)
-        if target_loop and target_loop.is_running():
-            future = asyncio.run_coroutine_threadsafe(
-                self._silence_timer(key, user), target_loop
-            )
-            self._silence_tasks[key] = future
-
-    async def _silence_timer(self, key: Union[int, str], user):
-        """Attend la duree de silence puis declenche le traitement."""
-        await asyncio.sleep(self.silence_duration)
-        buf = self._buffers.get(key)
-        if buf and len(buf) > 0:
-            audio_data = bytes(buf)
-            self._buffers[key] = bytearray()
-            logger.info(f"Silence detecte ({len(audio_data)} octets audio capturés pour {user or key})")
-            try:
-                await self.on_speech(user, audio_data)
-            except Exception as e:
-                logger.error(f"Erreur dans on_speech pour {user or key}: {e}")
-
-    def cleanup(self):
-        for task in self._silence_tasks.values():
-            if not task.done():
-                task.cancel()
-        self._buffers.clear()
-        self._silence_tasks.clear()
-

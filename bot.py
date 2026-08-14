@@ -167,13 +167,14 @@ async def join_cmd(ctx: commands.Context):
             sink = VoiceSink(
                 on_speech=lambda user, audio: _handle_speech(user, audio, ctx.channel, vc),
                 silence_duration=config.VOICE_SILENCE_DURATION,
+                loop=bot.loop,
             )
             vc.listen(sink)
-            logger.info("Ecoute vocale demarree.")
+            logger.info("Ecoute vocale demarree avec succes.")
 
 
 async def _handle_speech(
-    user: discord.Member,
+    user: Optional[discord.Member],
     audio_data: bytes,
     text_channel: discord.TextChannel,
     voice_client: voice_recv.VoiceRecvClient,
@@ -181,8 +182,17 @@ async def _handle_speech(
     """
     Pipeline: audio PCM -> Whisper STT -> Groq IA -> edge-tts TTS
     """
-    if user.bot:
+    if user is None:
+        # Si le membre n'a pas ete identifie par SSRC, prend le premier humain dans le vocal
+        if voice_client and voice_client.channel:
+            members = [m for m in voice_client.channel.members if not m.bot]
+            if members:
+                user = members[0]
+
+    if not user or user.bot:
         return
+
+    logger.info(f"Traitement de la voix de {user.display_name}...")
 
     # 1. Transcription vocale -> texte
     transcript = await transcribe_audio(audio_data)

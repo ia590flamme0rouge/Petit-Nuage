@@ -39,12 +39,13 @@ async def transcribe_audio(pcm_data: bytes) -> Optional[str]:
         logger.warning("GROQ_API_KEY manquante, transcription impossible.")
         return None
 
-    # Filtre les enregistrements trop courts (< 0.5s = bruit)
-    min_bytes = DISCORD_SAMPLE_RATE * DISCORD_CHANNELS * DISCORD_SAMPLE_WIDTH // 2
+    # Filtre les enregistrements trop courts (< 0.2s = bruit)
+    min_bytes = DISCORD_SAMPLE_RATE * DISCORD_CHANNELS * DISCORD_SAMPLE_WIDTH // 5
     if len(pcm_data) < min_bytes:
-        logger.debug("Audio trop court, ignore.")
+        logger.debug(f"Audio trop court ({len(pcm_data)} octets < {min_bytes}), ignore.")
         return None
 
+    logger.info(f"Envoi de {len(pcm_data)} octets PCM a Whisper Groq...")
     wav_bytes = pcm_to_wav_bytes(pcm_data)
     url = "https://api.groq.com/openai/v1/audio/transcriptions"
     headers = {"Authorization": f"Bearer {config.GROQ_API_KEY}"}
@@ -63,7 +64,7 @@ async def transcribe_audio(pcm_data: bytes) -> Optional[str]:
             ) as resp:
                 if resp.status == 200:
                     text = (await resp.text()).strip()
-                    logger.info(f"Transcription: {text!r}")
+                    logger.info(f"Transcription Whisper reussie: {text!r}")
                     return text if text else None
                 else:
                     err = await resp.text()
@@ -84,50 +85,58 @@ class VoiceSink(voice_recv.AudioSink):
         self,
         on_speech: Callable,
         silence_duration: float = 1.5,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
     ):
         super().__init__()
         self.on_speech = on_speech
         self.silence_duration = silence_duration
-        self._buffers: Dict[int, bytearray] = {}
-        self._silence_tasks: Dict[int, asyncio.Task] = {}
+        self.loop = loop
+        self._buffers: Dict[Union[int, str], bytearray] = {}
+        self._silence_tasks: Dict[Union[int, str], Any] = {}
 
     def wants_opus(self) -> bool:
         return False  # On veut du PCM decode
 
     def write(self, user, data: voice_recv.VoiceData):
-        if user is None or user.bot:
+        if user and user.bot:
             return
 
-        uid = user.id
-        if uid not in self._buffers:
-            self._buffers[uid] = bytearray()
+        if not data or not data.pcm:
+            return
 
-        self._buffers[uid].extend(data.pcm)
+        # Si user n'est pas encore resolu par SSRC, utilise le SSRC du paquet comme cle
+        key = user.id if user else f"ssrc_{data.packet.ssrc}"
+
+        if key not in self._buffers:
+            self._buffers[key] = bytearray()
+
+        self._buffers[key].extend(data.pcm)
 
         # Annule le timer precedent
-        old = self._silence_tasks.get(uid)
+        old = self._silence_tasks.get(key)
         if old is not None and not old.done():
             old.cancel()
 
-        # IMPORTANT: write() est appele depuis le thread audio (pas l'event loop)
-        # On doit utiliser run_coroutine_threadsafe au lieu de create_task
-        loop = self.voice_client.client.loop
-        future = asyncio.run_coroutine_threadsafe(
-            self._silence_timer(uid, user), loop
-        )
-        self._silence_tasks[uid] = future
+        # write() est appele depuis le thread audio -> run_coroutine_threadsafe
+        target_loop = self.loop or (self.voice_client and self.voice_client.client.loop)
+        if target_loop and target_loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(
+                self._silence_timer(key, user), target_loop
+            )
+            self._silence_tasks[key] = future
 
-    async def _silence_timer(self, uid: int, user):
+    async def _silence_timer(self, key: Union[int, str], user):
         """Attend la duree de silence puis declenche le traitement."""
         await asyncio.sleep(self.silence_duration)
-        buf = self._buffers.get(uid)
+        buf = self._buffers.get(key)
         if buf and len(buf) > 0:
             audio_data = bytes(buf)
-            self._buffers[uid] = bytearray()
+            self._buffers[key] = bytearray()
+            logger.info(f"Silence detecte ({len(audio_data)} octets audio capturés pour {user or key})")
             try:
                 await self.on_speech(user, audio_data)
             except Exception as e:
-                logger.error(f"Erreur dans on_speech pour {user}: {e}")
+                logger.error(f"Erreur dans on_speech pour {user or key}: {e}")
 
     def cleanup(self):
         for task in self._silence_tasks.values():

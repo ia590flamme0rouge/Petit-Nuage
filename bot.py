@@ -1,15 +1,24 @@
 """
-bot.py — Bot Discord principal (Disnake + discord-ext-voice-recv, DAVE-compatible)
+bot.py — Bot Discord principal (Py-cord DAVE-compatible)
 """
 import asyncio
 import logging
 import os
 from typing import Optional
-
-import disnake
-from disnake.ext import commands
 from aiohttp import web
-from discord.ext import voice_recv
+import discord
+import discord.sinks
+from discord.ext import commands
+
+# Patches pour Pycord 2.8.1 (SinkEventRouter & PacketDecoder compatibility)
+if not hasattr(discord.sinks.Sink, "__sink_listeners__"):
+    discord.sinks.Sink.__sink_listeners__ = []
+if not hasattr(discord.sinks.Sink, "walk_children"):
+    discord.sinks.Sink.walk_children = lambda self: []
+if not hasattr(discord.sinks.Sink, "is_opus"):
+    discord.sinks.Sink.is_opus = lambda self: False
+if not hasattr(discord.sinks.Sink, "wants_opus"):
+    discord.sinks.Sink.wants_opus = lambda self: False
 
 import config
 from image_generator import fetch_avatar_bytes, build_welcome_banner
@@ -20,7 +29,7 @@ from speech_handler import transcribe_audio
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("welcome_bot")
 
-intents = disnake.Intents.default()
+intents = discord.Intents.default()
 intents.members = True
 intents.message_content = True
 intents.voice_states = True
@@ -39,11 +48,11 @@ voice_handler = VoiceHandler()
 
 @bot.event
 async def on_ready():
-    logger.info(f"Connecté en tant que {bot.user} (ID: {bot.user.id})")
+    logger.info(f"Connecté en tant que {bot.user} (ID: {bot.user.id}) - Version Discord: {getattr(discord, '__version__', 'inconnue')}")
 
 
 @bot.event
-async def on_message(message: disnake.Message):
+async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
@@ -66,7 +75,7 @@ async def on_message(message: disnake.Message):
 
 
 @bot.event
-async def on_member_join(member: disnake.Member):
+async def on_member_join(member: discord.Member):
     guild = member.guild
     if guild.id != config.GUILD_ID:
         return
@@ -78,7 +87,7 @@ async def on_member_join(member: disnake.Member):
     if roles_to_add:
         try:
             await member.add_roles(*roles_to_add, reason="Rôles automatiques à l'arrivée")
-        except (disnake.Forbidden, disnake.HTTPException) as e:
+        except (discord.Forbidden, discord.HTTPException) as e:
             logger.error(f"Erreur attribution rôles : {e}")
 
     channel = guild.get_channel(config.WELCOME_CHANNEL_ID)
@@ -98,7 +107,7 @@ async def on_member_join(member: disnake.Member):
             height=config.BANNER_HEIGHT,
             avatar_size=config.AVATAR_SIZE,
         )
-        file = disnake.File(fp=banner_buffer, filename="welcome.png")
+        file = discord.File(fp=banner_buffer, filename="welcome.png")
         msg = config.WELCOME_MESSAGE_TEMPLATE.format(
             member=member.mention, guild=guild.name, count=guild.member_count
         )
@@ -126,6 +135,18 @@ async def ask_cmd(ctx: commands.Context, *, question: str):
             await ctx.send(chunk)
 
 
+@bot.command(name="say")
+async def say_cmd(ctx: commands.Context, *, text: str):
+    """Fait parler le bot à voix haute dans le salon vocal."""
+    vc = ctx.guild.voice_client
+    if not vc or not vc.is_connected():
+        await ctx.send("Le bot doit être dans un salon vocal (`!join`).")
+        return
+
+    await ctx.send(f"🗣️ *Lecture à voix haute :* {text}")
+    await voice_handler.speak(text, vc)
+
+
 @bot.command(name="reset")
 async def reset_cmd(ctx: commands.Context):
     """Réinitialise l'historique de conversation."""
@@ -136,110 +157,109 @@ async def reset_cmd(ctx: commands.Context):
 
 
 # ---------------------------------------------------------------------------
-# Commandes vocales — Disnake + voice_recv (DAVE-compatible)
+# Commandes vocales — Py-cord (DAVE-compatible)
 # ---------------------------------------------------------------------------
-
-class SpeechSink(voice_recv.AudioSink):
-    """
-    Sink audio qui accumule le PCM de chaque utilisateur et
-    déclenche la transcription + réponse IA après un silence.
-    """
-
-    def __init__(self, text_channel: disnake.TextChannel, vh: VoiceHandler):
-        super().__init__()
-        self.text_channel = text_channel
-        self.vh = vh
-        self._buffers: dict[int, bytearray] = {}
-        self._timers: dict[int, asyncio.TimerHandle] = {}
-        self._loop = asyncio.get_event_loop()
-
-    def wants_opus(self) -> bool:
-        return False  # on veut du PCM décodé
-
-    def write(self, user, data: voice_recv.VoiceData):
-        if user is None or user.bot:
-            return
-        uid = user.id
-        if uid not in self._buffers:
-            self._buffers[uid] = bytearray()
-        self._buffers[uid].extend(data.pcm)
-
-        # Reset le timer de silence
-        if uid in self._timers:
-            self._timers[uid].cancel()
-        self._timers[uid] = self._loop.call_later(
-            config.VOICE_SILENCE_DURATION,
-            lambda u=user, i=uid: asyncio.ensure_future(self._on_silence(u, i))
-        )
-
-    async def _on_silence(self, user: disnake.Member, uid: int):
-        buf = self._buffers.pop(uid, bytearray())
-        self._timers.pop(uid, None)
-        if len(buf) < 8000:  # trop court, on ignore
-            return
-
-        logger.info(f"Audio reçu de {user.display_name} : {len(buf)} octets PCM")
-        transcript = await transcribe_audio(bytes(buf))
-        if not transcript:
-            return
-
-        await self.text_channel.send(f"🎙️ **{user.display_name}** : {transcript}")
-
-        async with self.text_channel.typing():
-            response = await ai_handler.generate_response(self.text_channel.id, transcript)
-
-        for chunk in split_message(response):
-            await self.text_channel.send(chunk)
-
-        vc = self.vh.voice_client
-        if vc:
-            await self.vh.speak(response, vc)
-
-    def cleanup(self):
-        for t in self._timers.values():
-            t.cancel()
-        self._buffers.clear()
-        self._timers.clear()
-
 
 @bot.command(name="join")
 async def join_cmd(ctx: commands.Context):
-    """Le bot rejoint le salon vocal et écoute en continu."""
+    """Le bot rejoint ton salon vocal et commence a ecouter."""
     if not config.VOICE_ENABLED:
-        await ctx.send("La fonctionnalité vocale est désactivée.")
+        await ctx.send("La fonctionnalite vocale est desactivee.")
         return
 
-    if not ctx.author.voice or not ctx.author.voice.channel:
-        await ctx.send(f"Tu dois être dans un salon vocal, {ctx.author.mention} !")
+    joined = await voice_handler.join(ctx.author, ctx.channel)
+    if joined:
+        vc = ctx.guild.voice_client
+        if vc:
+            try:
+                try:
+                    vc.stop_recording()
+                except Exception:
+                    pass
+
+                vc.start_recording(
+                    discord.sinks.WaveSink(),
+                    on_recording_finished,
+                )
+                logger.info("Enregistrement vocal Py-cord DAVE demarre.")
+                await ctx.send("🎙️ **J'écoute le salon vocal !** Parlez, puis faites `!stop` quand vous avez fini pour que je réponde.")
+            except Exception as e:
+                logger.error(f"Erreur lors de start_recording: {e}", exc_info=True)
+                await ctx.send(f"⚠️ Erreur démarrage écoute : `{e}`")
+
+
+@bot.command(name="stop")
+async def stop_cmd(ctx: commands.Context):
+    """Arrete l'enregistrement vocal et traite ce qui a ete dit."""
+    vc = ctx.guild.voice_client
+    if vc:
+        try:
+            vc.stop_recording()
+            await ctx.send("⏹️ Traitement de votre message vocal en cours...")
+        except Exception as e:
+            logger.warning(f"Stop recording exception: {e}")
+            await ctx.send("⚠️ Aucun enregistrement en cours ou déjà arrêté.")
+    else:
+        await ctx.send("Le bot n'est pas dans un salon vocal.")
+
+
+async def on_recording_finished(sink: discord.sinks.Sink, *args):
+    """Callback execute quand l'enregistrement vocal se termine."""
+    voice_client = voice_handler.voice_client
+    text_channel = voice_handler.text_channel
+
+    if not text_channel:
+        logger.error("Salon textuel introuvable pour la réponse.")
         return
 
-    channel = ctx.author.voice.channel
+    if not config.GROQ_API_KEY:
+        await text_channel.send("⚠️ `GROQ_API_KEY` est manquante dans les variables d'environnement sur Render !")
+        return
 
-    # Se déplacer si déjà connecté ailleurs
-    if ctx.guild.voice_client:
-        if ctx.guild.voice_client.channel == channel:
-            await ctx.send(f"Je suis déjà dans **{channel.name}** !")
-            return
-        await ctx.guild.voice_client.disconnect()
+    processed = False
+    for user_id, audio in sink.audio_data.items():
+        guild = text_channel.guild if text_channel else None
+        member = guild.get_member(user_id) if guild else None
+        if member and member.bot:
+            continue
 
-    try:
-        vc = await channel.connect(cls=voice_recv.VoiceRecvClient)
-        voice_handler.voice_client = vc
-        voice_handler.text_channel = ctx.channel
-        voice_handler._ensure_tts_worker()
+        wav_bytes = audio.file.read()
+        if len(wav_bytes) < 4000:
+            continue
 
-        sink = SpeechSink(ctx.channel, voice_handler)
-        vc.listen(sink)
+        processed = True
+        logger.info(f"Traitement de {len(wav_bytes)} octets audio pour user_id={user_id}...")
 
-        logger.info(f"Connecté à {channel.name} avec voice_recv")
-        await ctx.send(
-            f"🎙️ **J'écoute {channel.name} en continu !**\n"
-            f"Parlez directement — je vous répondrai automatiquement après votre phrase.\n"
-            f"Tapez `!leave` pour que je parte."
-        )
-    except Exception as e:
-        logger.error(f"Erreur connexion vocale : {e}", exc_info=True)
-        await ctx.send(f"⚠️ Impossible de rejoindre le salon vocal : `{e}`")
+        transcript = await transcribe_audio(wav_bytes)
+        if not transcript:
+            await text_channel.send("🔇 Audio capturé mais aucun mot n'a pu être transcrit.")
+            continue
+
+        display_name = member.display_name if member else f"Membre {user_id}"
+        await text_channel.send(f"🎙️ **{display_name}** : {transcript}")
+
+        async with text_channel.typing():
+            response = await ai_handler.generate_response(text_channel.id, transcript)
+
+        for chunk in split_message(response):
+            await text_channel.send(chunk)
+
+        if voice_client:
+            await voice_handler.speak(response, voice_client)
+
+    if not processed:
+        await text_channel.send("⚠️ Aucun audio capturé. Assurez-vous de parler dans votre micro avant de faire `!stop` !")
+
+    # Relance l'écoute automatiquement si le bot est toujours dans le vocal
+    if voice_client and voice_client.is_connected():
+        try:
+            voice_client.start_recording(
+                discord.sinks.WaveSink(),
+                on_recording_finished,
+            )
+            await text_channel.send("🎙️ *Écoute relancée !* Parlez puis faites `!stop` quand vous souhaitez une réponse.")
+        except Exception as e:
+            logger.error(f"Erreur relance enregistrement: {e}")
 
 
 @bot.command(name="leave")
@@ -247,14 +267,11 @@ async def leave_cmd(ctx: commands.Context):
     """Le bot quitte le salon vocal."""
     vc = ctx.guild.voice_client
     if vc:
-        if hasattr(vc, 'stop_listening'):
-            vc.stop_listening()
-        await vc.disconnect()
-        voice_handler.voice_client = None
-        voice_handler.text_channel = None
-        await ctx.send("👋 Bonne conversation ! J'ai quitté le salon vocal.")
-    else:
-        await ctx.send("Je ne suis dans aucun salon vocal.")
+        try:
+            vc.stop_recording()
+        except Exception:
+            pass
+    await voice_handler.leave(ctx.guild, ctx.channel)
 
 
 # ---------------------------------------------------------------------------
@@ -273,14 +290,15 @@ async def run_web_server():
     port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logger.info(f"Serveur HTTP démarré sur le port {port}")
+    logger.info(f"Serveur HTTP de health check démarré sur le port {port}")
 
 
 async def main():
-    await asyncio.gather(
-        run_web_server(),
-        bot.start(config.BOT_TOKEN),
-    )
+    async with bot:
+        await asyncio.gather(
+            run_web_server(),
+            bot.start(config.BOT_TOKEN),
+        )
 
 
 if __name__ == "__main__":

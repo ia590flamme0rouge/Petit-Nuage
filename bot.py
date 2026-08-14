@@ -1,4 +1,7 @@
+import asyncio
+import os
 import logging
+from aiohttp import web
 import discord
 from discord.ext import commands
 from discord.ext import voice_recv
@@ -212,5 +215,29 @@ async def leave_cmd(ctx: commands.Context):
     await voice_handler.leave(ctx.guild, ctx.channel)
 
 
+async def health_check(request):
+    return web.Response(text="OK")
+
+
+async def run_web_server():
+    """Mini serveur HTTP pour satisfaire Render (plan gratuit Web Service)."""
+    app = web.Application()
+    app.router.add_get("/", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"Serveur HTTP de health check démarré sur le port {port}")
+
+
+async def main():
+    async with bot:
+        await asyncio.gather(
+            run_web_server(),
+            bot.start(config.BOT_TOKEN),
+        )
+
+
 if __name__ == "__main__":
-    bot.run(config.BOT_TOKEN)
+    asyncio.run(main())

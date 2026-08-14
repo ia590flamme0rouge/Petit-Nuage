@@ -198,7 +198,7 @@ async def stop_cmd(ctx: commands.Context):
             await ctx.send("⏹️ Traitement de votre message vocal en cours...")
         except Exception as e:
             logger.warning(f"Stop recording exception: {e}")
-            await ctx.send("⚠️ Aucun enregistrement en cours ou déjà arrêté.")
+            await ctx.send(f"⚠️ Erreur lors de l'arrêt de l'enregistrement : `{e}`")
     else:
         await ctx.send("Le bot n'est pas dans un salon vocal.")
 

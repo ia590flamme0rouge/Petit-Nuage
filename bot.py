@@ -30,7 +30,9 @@ voice_handler = VoiceHandler()
 
 @bot.event
 async def on_ready():
-    logger.info(f"Connecté en tant que {bot.user} (ID: {bot.user.id})")
+    logger.info(f"Connecté en tant que {bot.user} (ID: {bot.user.id}) - Version Discord: {getattr(discord, '__version__', 'inconnue')}")
+    if not hasattr(discord.VoiceClient, "start_recording"):
+        logger.warning("ATTENTION: discord.VoiceClient n'a pas start_recording ! L'ancienne librairie discord.py est encore dans le cache de Render.")
 
 
 @bot.event
@@ -153,6 +155,11 @@ async def join_cmd(ctx: commands.Context):
     if joined:
         vc = ctx.guild.voice_client
         if vc:
+            if not hasattr(vc, "start_recording"):
+                await ctx.send("⚠️ **Render utilise encore l'ancien cache.** Va sur Render -> bouton **Manual Deploy** -> clique sur **Clear build cache & deploy** !")
+                logger.error("start_recording introuvable sur VoiceClient (cache Render périmé)")
+                return
+
             try:
                 if getattr(vc, "recording", False):
                     vc.stop_recording()

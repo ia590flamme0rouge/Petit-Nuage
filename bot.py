@@ -31,6 +31,16 @@ voice_handler = VoiceHandler()
 @bot.event
 async def on_ready():
     logger.info(f"Connecté en tant que {bot.user} (ID: {bot.user.id})")
+    if not discord.opus.is_loaded():
+        for lib in ["opus", "libopus", "libopus.so.0", "libopus.so", "libopus-0.dll"]:
+            try:
+                discord.opus.load_opus(lib)
+                logger.info(f"Opus chargé avec succès via {lib}")
+                break
+            except Exception:
+                pass
+        if not discord.opus.is_loaded():
+            logger.warning("ATTENTION: Opus n'a pas pu être chargé automatiquement.")
 
 
 @bot.event
@@ -160,17 +170,37 @@ async def join_cmd(ctx: commands.Context):
         await ctx.send("La fonctionnalite vocale est desactivee.")
         return
 
+    # S'assure qu'Opus est chargé
+    if not discord.opus.is_loaded():
+        for lib in ["opus", "libopus", "libopus.so.0", "libopus.so", "libopus-0.dll"]:
+            try:
+                discord.opus.load_opus(lib)
+                break
+            except Exception:
+                pass
+
+    if not discord.opus.is_loaded():
+        await ctx.send("⚠️ **Attention** : La bibliothèque audio Opus n'a pas pu être chargée sur le serveur Render. La réception audio risque de ne pas fonctionner.")
+
     joined = await voice_handler.join(ctx.author, ctx.channel)
     if joined:
         vc = ctx.guild.voice_client
         if vc and isinstance(vc, voice_recv.VoiceRecvClient):
-            sink = VoiceSink(
-                on_speech=lambda user, audio: _handle_speech(user, audio, ctx.channel, vc),
-                silence_duration=config.VOICE_SILENCE_DURATION,
-                loop=bot.loop,
-            )
-            vc.listen(sink)
-            logger.info("Ecoute vocale demarree avec succes.")
+            try:
+                if vc.is_listening():
+                    vc.stop_listening()
+
+                sink = VoiceSink(
+                    on_speech=lambda user, audio: _handle_speech(user, audio, ctx.channel, vc),
+                    silence_duration=config.VOICE_SILENCE_DURATION,
+                    loop=bot.loop,
+                )
+                vc.listen(sink)
+                logger.info("Ecoute vocale demarree avec succes.")
+                await ctx.send("🎙️ **J'écoute le salon vocal !** Parlez, je vous réponds.")
+            except Exception as e:
+                logger.error(f"Erreur lors de vc.listen(): {e}", exc_info=True)
+                await ctx.send(f"⚠️ Erreur lors du démarrage de l'écoute : `{e}`")
         else:
             logger.error(f"ECHEC de démarrage de l'écoute: voice_client est {type(vc)}")
             await ctx.send("⚠️ Erreur: le client vocal n'a pas pu démarrer l'écoute.")
@@ -185,6 +215,10 @@ async def _handle_speech(
     """
     Pipeline: audio PCM -> Whisper STT -> Groq IA -> edge-tts TTS
     """
+    if not config.GROQ_API_KEY:
+        await text_channel.send("⚠️ `GROQ_API_KEY` est manquante dans les variables d'environnement sur Render !")
+        return
+
     if user is None:
         # Si le membre n'a pas ete identifie par SSRC, prend le premier humain dans le vocal
         if voice_client and voice_client.channel:
@@ -195,17 +229,18 @@ async def _handle_speech(
     if not user or user.bot:
         return
 
-    logger.info(f"Traitement de la voix de {user.display_name}...")
+    logger.info(f"Traitement de la voix de {user.display_name} ({len(audio_data)} octets PCM)...")
 
     # 1. Transcription vocale -> texte
     transcript = await transcribe_audio(audio_data)
     if not transcript:
+        logger.info("Transcription vide ou silence.")
         return
 
     logger.info(f"{user.display_name} a dit: {transcript!r}")
 
     # 2. Affiche la transcription dans le salon texte
-    await text_channel.send(f"**{user.display_name}** : {transcript}")
+    await text_channel.send(f"🎙️ **{user.display_name}** : {transcript}")
 
     # 3. Genere la reponse IA
     async with text_channel.typing():

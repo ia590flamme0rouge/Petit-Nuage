@@ -171,6 +171,9 @@ async def join_cmd(ctx: commands.Context):
             )
             vc.listen(sink)
             logger.info("Ecoute vocale demarree avec succes.")
+        else:
+            logger.error(f"ECHEC de démarrage de l'écoute: voice_client est {type(vc)}")
+            await ctx.send("⚠️ Erreur: le client vocal n'a pas pu démarrer l'écoute.")
 
 
 async def _handle_speech(

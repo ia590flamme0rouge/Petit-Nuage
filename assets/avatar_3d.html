@@ -99,9 +99,9 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0e12);
 
 const camera = new THREE.PerspectiveCamera(
-  35, window.innerWidth / window.innerHeight, 0.01, 100
+  45, window.innerWidth / window.innerHeight, 0.01, 100
 );
-camera.position.set(0, 1.5, 0.55);
+camera.position.set(0, 1.45, 1.6);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -110,10 +110,10 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 viewport.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1.45, 0.02);
+controls.target.set(0, 1.45, 0);
 controls.enableDamping = true;
-controls.minDistance = 0.2;
-controls.maxDistance = 2;
+controls.minDistance = 0.5;
+controls.maxDistance = 5;
 controls.update();
 
 // Lighting — simple 3-point setup
@@ -392,40 +392,47 @@ toggleBtn.addEventListener("click", () => {
 });
 
 /* ============================================================
-   6) INTÉGRATION WEBSOCKET (exemple — à adapter à ton backend)
-   ------------------------------------------------------------
-   Décommente et adapte l'URL. Deux formats de message supportés
-   à titre d'exemple ; adapte au protocole réel de ton bot IA.
+   6) INTÉGRATION WEBSOCKET SERVEUR DISCORD
    ============================================================ */
-/*
-function connectAvatarWebSocket(url) {
-  const ws = new WebSocket(url);
+function connectAvatarWebSocket() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${location.host}/ws`;
+  console.log("[avatar] Connexion WebSocket :", wsUrl);
 
-  ws.onopen = () => console.log("[avatar] WebSocket connecté :", url);
+  const ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => console.log("[avatar] WebSocket connecté au bot Petit Nuage");
 
   ws.onmessage = (event) => {
-    let msg;
-    try { msg = JSON.parse(event.data); } catch { return; }
-
-    // Format A — événements discrets début/fin de parole
-    if (msg.event === "speaking_start") window.setSpeakingState(true);
-    if (msg.event === "speaking_end")   window.setSpeakingState(false);
-
-    // Format B — niveau d'amplitude audio continu (0..1), pour un
-    // mouvement de bouche plus réactif / synchronisé au volume réel
-    if (typeof msg.amplitude === "number") {
-      window.setSpeakingAmplitude(msg.amplitude);
+    try {
+      const data = JSON.parse(event.data);
+      console.log("[avatar] Événement reçu:", data);
+      if (data.type === "speaking") {
+        window.setSpeakingState(data.value);
+      }
+      if (typeof data.amplitude === "number") {
+        window.setSpeakingAmplitude(data.amplitude);
+      }
+    } catch (e) {
+      console.error("[avatar] Erreur décodage WS:", e);
     }
   };
 
-  ws.onclose = () => console.log("[avatar] WebSocket fermé");
-  ws.onerror = (e) => console.error("[avatar] WebSocket erreur", e);
+  ws.onclose = () => {
+    console.log("[avatar] WebSocket déconnecté, reconnexion dans 3s...");
+    window.setSpeakingState(false);
+    setTimeout(connectAvatarWebSocket, 3000);
+  };
+
+  ws.onerror = (e) => {
+    console.error("[avatar] Erreur WS:", e);
+    ws.close();
+  };
 
   return ws;
 }
 
-// connectAvatarWebSocket("ws://localhost:8000/avatar");
-*/
+connectAvatarWebSocket();
 </script>
 </body>
 </html>

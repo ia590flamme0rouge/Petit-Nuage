@@ -321,6 +321,14 @@ async def broadcast_avatar_event(event_data: dict):
 voice_handler.on_speaking_change = broadcast_avatar_event
 
 
+async def avatar_3d_page(request):
+    if os.path.exists("avatar_3d.html"):
+        with open("avatar_3d.html", "r", encoding="utf-8") as f:
+            content = f.read()
+        return web.Response(text=content, content_type="text/html")
+    return web.Response(text="Page avatar 3D introuvable", status=404)
+
+
 async def model_file(request):
     if os.path.exists("LeePerrySmith.glb"):
         with open("LeePerrySmith.glb", "rb") as f:
@@ -329,18 +337,28 @@ async def model_file(request):
     return web.Response(text="Modele 3D introuvable", status=404)
 
 
+async def free_head_mesh_file(request):
+    if os.path.exists("free_head_mesh_01.glb"):
+        with open("free_head_mesh_01.glb", "rb") as f:
+            data = f.read()
+        return web.Response(body=data, content_type="model/gltf-binary")
+    return web.Response(text="Modele free_head_mesh_01.glb introuvable", status=404)
+
+
 async def run_web_server():
     app = web.Application()
     app.router.add_get("/", health_check)
     app.router.add_get("/avatar", avatar_page)
+    app.router.add_get("/avatar_3d", avatar_3d_page)
     app.router.add_get("/LeePerrySmith.glb", model_file)
+    app.router.add_get("/free_head_mesh_01.glb", free_head_mesh_file)
     app.router.add_get("/ws", ws_handler)
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logger.info(f"Serveur HTTP et WebSocket Avatar démarré sur le port {port} (/avatar)")
+    logger.info(f"Serveur HTTP et WebSocket Avatar démarré sur le port {port} (/avatar & /avatar_3d)")
 
 
 async def main():

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Petit Nuage ☁️ — Robot 3D LeePerrySmith GLSL</title>
+  <title>Petit Nuage ☁️ — Avatar Bionique Synchronisé</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
     * {
@@ -13,7 +13,7 @@
     }
     body {
       font-family: 'Outfit', sans-serif;
-      background: radial-gradient(circle at center, #1b003a 0%, #0a0017 60%, #03000a 100%);
+      background: radial-gradient(circle at center, #0a0e17 0%, #010204 100%);
       color: #f8fafc;
       min-height: 100vh;
       display: flex;
@@ -23,658 +23,762 @@
       overflow: hidden;
     }
 
-    #webgl-canvas {
+    /* Starfield backdrop like the reference image */
+    .stars {
       position: absolute;
       inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      cursor: grab;
-    }
-    #webgl-canvas:active {
-      cursor: grabbing;
-    }
-
-    /* Cyberpunk CRT Scanline Overlay */
-    .crt-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 2;
-      pointer-events: none;
-      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-      background-size: 100% 4px;
-      opacity: 0.4;
+      z-index: 0;
+      background-image:
+        radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,0.5), transparent),
+        radial-gradient(1px 1px at 10% 75%, rgba(255,255,255,0.35), transparent),
+        radial-gradient(1px 1px at 45% 85%, rgba(255,255,255,0.4), transparent),
+        radial-gradient(1px 1px at 60% 40%, rgba(255,255,255,0.3), transparent);
+      background-repeat: repeat;
+      background-size: 300px 300px;
+      opacity: 0.6;
     }
 
-    /* Sci-Fi HUD Reticles */
-    .hud-frame {
+    /* Ambient Background Glow */
+    .glow-bg {
       position: absolute;
-      inset: 20px;
-      z-index: 3;
-      pointer-events: none;
-      border: 1px solid rgba(0, 240, 255, 0.2);
-      border-radius: 12px;
-      box-shadow: inset 0 0 40px rgba(0, 240, 255, 0.05);
+      width: 460px;
+      height: 460px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.22) 0%, rgba(236, 72, 153, 0.12) 50%, transparent 70%);
+      border-radius: 50%;
+      filter: blur(70px);
+      z-index: 0;
+      transition: transform 0.5s ease, background 0.5s ease;
     }
-    .hud-corner {
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      border-color: #00f0ff;
-      border-style: solid;
+    .glow-bg.speaking {
+      transform: scale(1.35);
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.32) 0%, rgba(56, 189, 248, 0.28) 50%, transparent 70%);
     }
-    .hud-corner.tl { top: -1px; left: -1px; border-width: 3px 0 0 3px; }
-    .hud-corner.tr { top: -1px; right: -1px; border-width: 3px 3px 0 0; }
-    .hud-corner.bl { bottom: -1px; left: -1px; border-width: 0 0 3px 3px; }
-    .hud-corner.br { bottom: -1px; right: -1px; border-width: 0 3px 3px 0; }
 
-    /* UI Overlay */
-    .ui-overlay {
+    /* Container */
+    .avatar-container {
       position: relative;
-      z-index: 10;
+      z-index: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1.25rem;
-      pointer-events: none;
-      margin-top: auto;
-      margin-bottom: 2.5rem;
+      gap: 2rem;
     }
 
+    /* Audio Waves Rings */
+    .wave-rings {
+      position: absolute;
+      top: 46%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 340px;
+      height: 340px;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .wave-ring {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      border-radius: 50%;
+      border: 2px solid rgba(56, 189, 248, 0.4);
+      opacity: 0;
+      transform: scale(0.8);
+      transition: all 0.3s ease;
+    }
+    .speaking .wave-ring:nth-child(1) {
+      animation: pulse-ring 1.8s infinite ease-out;
+    }
+    .speaking .wave-ring:nth-child(2) {
+      animation: pulse-ring 1.8s infinite ease-out 0.6s;
+    }
+    .speaking .wave-ring:nth-child(3) {
+      animation: pulse-ring 1.8s infinite ease-out 1.2s;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.75); opacity: 0.8; border-color: rgba(236, 72, 153, 0.8); }
+      100% { transform: scale(1.5); opacity: 0; border-color: rgba(56, 189, 248, 0); }
+    }
+
+    /* Avatar Floating Graphic */
+    .avatar-wrapper {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      animation: float 4.5s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(0.5deg); }
+    }
+
+    /* SVG Character */
+    svg#bionic-avatar {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 20px 45px rgba(56, 189, 248, 0.35));
+      transition: filter 0.3s ease;
+    }
+    .speaking svg#bionic-avatar {
+      filter: drop-shadow(0 25px 55px rgba(236, 72, 153, 0.55));
+    }
+
+    /* Subtle rotation on the mechanical rings */
+    .ring-slow {
+      transform-origin: 100px 90px;
+      animation: spin-slow 40s linear infinite;
+    }
+    .ring-slow-rev {
+      transform-origin: 100px 90px;
+      animation: spin-slow-rev 55s linear infinite;
+    }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes spin-slow-rev {
+      from { transform: rotate(360deg); }
+      to { transform: rotate(0deg); }
+    }
+
+    /* Mouth LED segments pulse when speaking */
+    .mouth-seg {
+      transition: opacity 0.08s ease, fill 0.15s ease;
+      opacity: 0.18;
+    }
+
+    /* Status Badge */
     .status-badge {
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      background: rgba(27, 0, 58, 0.85);
-      backdrop-filter: blur(16px);
-      padding: 0.75rem 1.75rem;
+      background: rgba(10, 14, 23, 0.75);
+      backdrop-filter: blur(12px);
+      padding: 0.75rem 1.5rem;
       border-radius: 9999px;
-      border: 1px solid rgba(0, 240, 255, 0.4);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 25px rgba(0, 240, 255, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
       font-size: 1.1rem;
-      font-family: 'Share Tech Mono', monospace;
       font-weight: 600;
       transition: all 0.3s ease;
-      pointer-events: auto;
     }
     .status-dot {
       width: 12px;
       height: 12px;
       border-radius: 50%;
-      background-color: #00f0ff;
-      box-shadow: 0 0 14px #00f0ff;
-      transition: all 0.3s ease;
+      background-color: #22c55e;
+      box-shadow: 0 0 12px #22c55e;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
     }
     .status-badge.speaking {
-      border-color: rgba(236, 72, 153, 0.8);
-      background: rgba(236, 72, 153, 0.25);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 35px rgba(236, 72, 153, 0.5);
+      border-color: rgba(236, 72, 153, 0.5);
+      background: rgba(236, 72, 153, 0.15);
     }
     .status-badge.speaking .status-dot {
       background-color: #ec4899;
-      box-shadow: 0 0 18px #ec4899;
-      animation: blink-dot 0.5s infinite alternate;
+      box-shadow: 0 0 15px #ec4899;
+      animation: blink-dot 0.8s infinite alternate;
     }
     @keyframes blink-dot {
-      from { opacity: 0.3; }
+      from { opacity: 0.4; }
       to { opacity: 1; }
     }
 
+    /* Subtitle Box */
     .subtitle-box {
-      max-width: 620px;
+      max-width: 500px;
       text-align: center;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       font-family: 'Share Tech Mono', monospace;
-      color: #cbd5e1;
-      background: rgba(27, 0, 58, 0.8);
-      backdrop-filter: blur(12px);
-      padding: 0.75rem 1.75rem;
-      border-radius: 12px;
-      border: 1px solid rgba(0, 240, 255, 0.2);
+      color: #94a3b8;
       line-height: 1.5;
-      min-height: 3.2rem;
-      transition: all 0.3s ease;
-      opacity: 0.9;
-      pointer-events: auto;
+      min-height: 3rem;
+      transition: opacity 0.3s ease, color 0.3s ease;
     }
     .subtitle-box.active {
-      color: #00f0ff;
-      border-color: rgba(0, 240, 255, 0.6);
-      box-shadow: 0 0 25px rgba(0, 240, 255, 0.4);
-      opacity: 1;
+      color: #7dd3fc;
+      font-weight: 600;
+      text-shadow: 0 0 12px rgba(125, 211, 252, 0.4);
     }
 
-    /* Audio Equalizer Visualizer Bars */
-    .visualizer-container {
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      gap: 5px;
-      height: 60px;
-      padding: 8px 16px;
-      background: rgba(27, 0, 58, 0.5);
-      border-radius: 16px;
-      border: 1px solid rgba(0, 240, 255, 0.2);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-      pointer-events: auto;
-      min-width: 280px;
-      margin-top: 0.5rem;
-    }
-    .visualizer-bar {
-      width: 6px;
-      height: 100%;
-      background-color: #00f0ff;
-      border-radius: 3px;
-      transform-origin: bottom;
-      transform: scaleY(0.08);
-      transition: transform 0.08s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-      box-shadow: 0 0 8px #00f0ff;
-    }
-  </style>
-  <!-- Three.js CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-</head>
-<body>
-
-  <div class="crt-overlay"></div>
-  <div class="hud-frame">
-    <div class="hud-corner tl"></div>
-    <div class="hud-corner tr"></div>
-    <div class="hud-corner bl"></div>
-    <div class="hud-corner br"></div>
-  </div>
-
-  <canvas id="webgl-canvas"></canvas>
-
-  <div class="ui-overlay">
-    <div class="status-badge" id="status-badge">
-      <div class="status-dot"></div>
-      <span id="status-text">PETIT NUAGE ☁️ — CHARGEMENT 3D...</span>
-    </div>
-    <div class="subtitle-box" id="subtitle-box">
-      Attente d'interaction vocale...
-    </div>
-    <div class="visualizer-container" id="visualizer-container">
-      <!-- Generated dynamically by JS -->
-    </div>
-  </div>
-
-  <script>
-    // =========================================================================
-    // 1. THREE.JS SCENE, CAMERA & RENDERER
-    // =========================================================================
-    const canvas = document.getElementById('webgl-canvas');
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0017, 0.035);
-
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-    camera.position.set(0, 0, 14);
-
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35;
-
-    let controls = null;
-    if (typeof THREE.OrbitControls !== 'undefined') {
-      controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.maxDistance = 25;
-      controls.minDistance = 5;
-    }
-
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    // =========================================================================
-    // 2. LIGHTING (Studio Key Light + Pink Rim + Cyan Rim)
-    // =========================================================================
-    const ambientLight = new THREE.AmbientLight(0x2e0854, 2.0);
-    scene.add(ambientLight);
-
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.8);
-    keyLight.position.set(3, 5, 5);
-    scene.add(keyLight);
-
-    const rimPink = new THREE.DirectionalLight(0xec4899, 3.5);
-    rimPink.position.set(5, -2, -3);
-    scene.add(rimPink);
-
-    const rimCyan = new THREE.DirectionalLight(0x00f0ff, 3.0);
-    rimCyan.position.set(-5, 3, -2);
-    scene.add(rimCyan);
-
-
-    // =========================================================================
-    // 3. CUSTOM GLSL HEAD SHADER & BIONIC IRIS SHADER
-    // =========================================================================
-
-    // A. Custom GLSL Chrome Bionic Shader for LeePerrySmith Mesh
-    const headShaderUniforms = {
-      uTime: { value: 0.0 },
-      uSpeaking: { value: 0.0 },
-      uColorBase: { value: new THREE.Color(0xd1d5db) },
-      uColorCyan: { value: new THREE.Color(0x00f0ff) },
-      uColorPink: { value: new THREE.Color(0xec4899) }
-    };
-
-    const headVertexShader = `
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        vViewPosition = -mvPosition.xyz;
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `;
-
-    const headFragmentShader = `
-      uniform float uTime;
-      uniform float uSpeaking;
-      uniform vec3 uColorBase;
-      uniform vec3 uColorCyan;
-      uniform vec3 uColorPink;
-
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-
-      void main() {
-        vec3 N = normalize(vNormal);
-        vec3 V = normalize(vViewPosition);
-
-        // Chrome Metallic Specular
-        float metallic = pow(max(0.0, dot(N, vec3(0.5, 0.8, 0.5))), 16.0);
-
-        // Cyan & Pink Rim Light Glow
-        float fresnel = pow(1.0 - max(0.0, dot(N, V)), 2.5);
-        vec3 rimGlow = mix(uColorCyan, uColorPink, uSpeaking * 0.8) * fresnel * 0.8;
-
-        vec3 finalColor = uColorBase * (0.35 + metallic * 0.65) + rimGlow;
-        gl_FragColor = vec4(finalColor, 1.0);
-      }
-    `;
-
-    const customHeadMaterial = new THREE.ShaderMaterial({
-      uniforms: headShaderUniforms,
-      vertexShader: headVertexShader,
-      fragmentShader: headFragmentShader
-    });
-
-    // B. Custom GLSL Bionic Iris Eye Shader (Matching Reference Image!)
-    const eyeShaderUniforms = {
-      uTime: { value: 0.0 },
-      uPupilSize: { value: 0.22 },
-      uSpeaking: { value: 0.0 }
-    };
-
-    const eyeVertexShader = `
-      varying vec2 vUv;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-
-      void main() {
-        vUv = uv;
-        vNormal = normalize(normalMatrix * normal);
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        vViewPosition = -mvPosition.xyz;
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `;
-
-    const eyeFragmentShader = `
-      uniform float uTime;
-      uniform float uPupilSize;
-      uniform float uSpeaking;
-
-      varying vec2 vUv;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-
-      void main() {
-        vec2 st = vUv - vec2(0.5);
-        float dist = length(st);
-        float angle = atan(st.y, st.x);
-
-        // Cyan Center (#00f0ff) -> Magenta Outer Edge (#ec4899)
-        vec3 cyanCore = vec3(0.0, 0.94, 1.0);
-        vec3 magentaEdge = vec3(0.92, 0.28, 0.6);
-        vec3 darkSocket = vec3(0.02, 0.05, 0.1);
-
-        // Radial Iris Fibers
-        float fibers = sin(angle * 36.0 + uTime * 2.0) * 0.5 + 0.5;
-        float fineFibers = sin(angle * 72.0 - uTime * 3.0) * 0.5 + 0.5;
-
-        // Blend Iris Colors
-        vec3 irisColor = mix(cyanCore, magentaEdge, smoothstep(0.18, 0.42, dist));
-        irisColor += vec3(fibers * 0.25 + fineFibers * 0.15);
-
-        // Black Central Dilating Pupil
-        float pupil = smoothstep(uPupilSize, uPupilSize - 0.03, dist);
-        vec3 finalColor = mix(irisColor, vec3(0.0), pupil);
-
-        // Dark Rim
-        float outerRim = smoothstep(0.44, 0.48, dist);
-        finalColor = mix(finalColor, darkSocket, outerRim);
-
-        // Glass Specular Dome Reflection
-        vec3 N = normalize(vNormal);
-        vec3 V = normalize(vViewPosition);
-        float fresnel = pow(1.0 - max(0.0, dot(N, V)), 3.0);
-        finalColor += vec3(fresnel * 0.6);
-
-        gl_FragColor = vec4(finalColor, 1.0);
-      }
-    `;
-
-    const bionicIrisMaterial = new THREE.ShaderMaterial({
-      uniforms: eyeShaderUniforms,
-      vertexShader: eyeVertexShader,
-      fragmentShader: eyeFragmentShader
-    });
-
-    const chromeBezelMat = new THREE.MeshStandardMaterial({
-      color: 0xd1d5db,
-      metalness: 0.96,
-      roughness: 0.12
-    });
-
-    const darkSteelMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      metalness: 0.9,
-      roughness: 0.25
-    });
-
-
-    // =========================================================================
-    // 4. BUILD 3D SCENE: LeePerrySmith.glb + ANIMATED BIONIC IRIS EYES
-    // =========================================================================
-    const headGroup = new THREE.Group();
-    scene.add(headGroup);
-
-    let headMeshModel = null;
-
-    // Create Animated Bionic Eye Assemblies (Matching Reference Image!)
-    function createBionicEye() {
-      const eyeGroup = new THREE.Group();
-
-      // Outer Beveled Chrome Aperture Ring
-      const ringGeo = new THREE.TorusGeometry(0.24, 0.04, 16, 32);
-      const ringMesh = new THREE.Mesh(ringGeo, chromeBezelMat);
-      eyeGroup.add(ringMesh);
-
-      // Inner Dark Steel Socket Lip
-      const innerRingGeo = new THREE.TorusGeometry(0.20, 0.02, 12, 24);
-      const innerRing = new THREE.Mesh(innerRingGeo, darkSteelMat);
-      eyeGroup.add(innerRing);
-
-      // Bionic Iris Lens Sphere
-      const irisGeo = new THREE.SphereGeometry(0.18, 32, 32);
-      const irisMesh = new THREE.Mesh(irisGeo, bionicIrisMaterial);
-      eyeGroup.add(irisMesh);
-
-      // 6 Mechanical Cable Plugs around the Eye Perimeter
-      for (let i = 0; i < 6; i++) {
-        const plugAng = (i / 6.0) * Math.PI * 2.0;
-        const plugGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.06, 12);
-        const plugMesh = new THREE.Mesh(plugGeo, chromeBezelMat);
-        plugMesh.position.set(Math.cos(plugAng) * 0.22, Math.sin(plugAng) * 0.22, 0);
-        plugMesh.rotation.z = plugAng + Math.PI / 2;
-        eyeGroup.add(plugMesh);
-      }
-
-      return eyeGroup;
-    }
-
-    // Left & Right Eye Assemblies (Avancés à Z = 2.10)
-    const eyeLeftAssembly = createBionicEye();
-    eyeLeftAssembly.position.set(-0.76, 0.90, 2.10);
-    eyeLeftAssembly.scale.set(0.75, 0.75, 0.75);
-    headGroup.add(eyeLeftAssembly);
-
-    const eyeRightAssembly = createBionicEye();
-    eyeRightAssembly.position.set(0.46, 0.90, 2.10);
-    eyeRightAssembly.scale.set(0.75, 0.75, 0.75);
-    headGroup.add(eyeRightAssembly);
-
-    // Eye Lights casting cyan & magenta glows
-    const eyeLightL = new THREE.PointLight(0x00f0ff, 4.0, 3);
-    eyeLightL.position.set(-0.76, 0.90, 2.30);
-    headGroup.add(eyeLightL);
-
-    const eyeLightR = new THREE.PointLight(0x00f0ff, 4.0, 3);
-    eyeLightR.position.set(0.46, 0.90, 2.30);
-    headGroup.add(eyeLightR);
-
-    // Mechanical Neck Bust Base
-    const neckGeo = new THREE.CylinderGeometry(0.7, 1.2, 2.5, 24);
-    const neckMesh = new THREE.Mesh(neckGeo, darkSteelMat);
-    neckMesh.position.set(0, -2.6, -0.2);
-    headGroup.add(neckMesh);
-
-
-    // LOAD LeePerrySmith.glb 3D MODEL
-    const loader = new THREE.GLTFLoader();
-    const modelUrls = [
-      '/LeePerrySmith.glb',
-      'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb'
-    ];
-
-    function loadModel(index = 0) {
-      if (index >= modelUrls.length) return;
-
-      loader.load(
-        modelUrls[index],
-        (gltf) => {
-          console.log("Modèle LeePerrySmith.glb chargé !");
-          const model = gltf.scene;
-
-          // Apply Custom GLSL Bionic Chrome Shader
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.material = customHeadMaterial;
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
-
-          model.scale.set(1.1, 1.1, 1.1);
-          model.position.set(0, -1, 0);
-          headGroup.add(model);
-          headMeshModel = model;
-
-          document.getElementById('status-text').textContent = "PETIT NUAGE ☁️ — 3D LeePerrySmith GLSL ACTIF";
-        },
-        undefined,
-        (err) => {
-          console.warn("Re-tentative de chargement du modèle 3D...", err);
-          loadModel(index + 1);
-        }
+    /* ── Scanlines CRT ── */
+    .crt-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.10) 0px,
+        rgba(0,0,0,0.10) 1px,
+        transparent 1px,
+        transparent 3px
       );
     }
 
-    loadModel(0);
+    /* ── HUD corners ── */
+    .hud-corner {
+      position: absolute;
+      z-index: 5;
+      width: 48px;
+      height: 48px;
+      pointer-events: none;
+      opacity: 0.5;
+      transition: opacity 0.4s;
+    }
+    .hud-corner.tl { top: 16px; left: 16px;   border-top: 2px solid #22d3ee; border-left: 2px solid #22d3ee; }
+    .hud-corner.tr { top: 16px; right: 16px;  border-top: 2px solid #22d3ee; border-right: 2px solid #22d3ee; }
+    .hud-corner.bl { bottom: 16px; left: 16px;  border-bottom: 2px solid #22d3ee; border-left: 2px solid #22d3ee; }
+    .hud-corner.br { bottom: 16px; right: 16px; border-bottom: 2px solid #22d3ee; border-right: 2px solid #22d3ee; }
+    body.speaking-state .hud-corner { opacity: 1; border-color: #f472b6; }
 
-
-    // Mouse tracking for dynamic bionic gaze
-    let mouse = { x: 0, y: 0 };
-    window.addEventListener('mousemove', (e) => {
-      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-    });
-
-    // Generate Equalizer Visualizer Bars dynamically
-    const visualizerContainer = document.getElementById('visualizer-container');
-    const numBars = 24;
-    for (let i = 0; i < numBars; i++) {
-      const bar = document.createElement('div');
-      bar.classList.add('visualizer-bar');
-      visualizerContainer.appendChild(bar);
+    /* ── Equalizer canvas ── */
+    #eq-canvas {
+      display: block;
+      width: 340px;
+      height: 56px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(34,211,238,0.18);
+      box-shadow: 0 0 18px rgba(34,211,238,0.08);
     }
 
-    // =========================================================================
-    // 5. ANIMATION LOOP & REAL-TIME WEBSOCKET LIP-SYNC
-    // =========================================================================
-    let isSpeaking = false;
-    let targetJawOpen = 0;
-    let currentJawOpen = 0;
-    let speakPhase = 0;
-
-    let targetGazeX = 0;
-    let targetGazeY = 0;
-
-    const clock = new THREE.Clock();
-
-    function animate() {
-      requestAnimationFrame(animate);
-      const time = clock.getElapsedTime();
-
-      if (controls) controls.update();
-
-      // Update Custom GLSL Shader Uniforms
-      headShaderUniforms.uTime.value = time;
-      eyeShaderUniforms.uTime.value = time;
-
-      // Floating Motion
-      headGroup.position.y = Math.sin(time * 1.5) * 0.12;
-
-      // Dynamic Gaze Tracking & Natural Micro-Saccades
-      let gazeTargetX = mouse.y * 0.18;
-      let gazeTargetY = mouse.x * 0.18;
-
-      if (Math.random() < 0.02) {
-        gazeTargetX += (Math.random() - 0.5) * 0.12;
-        gazeTargetY += (Math.random() - 0.5) * 0.12;
-      }
-
-      targetGazeX += (gazeTargetX - targetGazeX) * 0.12;
-      targetGazeY += (gazeTargetY - targetGazeY) * 0.12;
-
-      // Rotate inner Iris meshes to simulate eye movement
-      eyeLeftAssembly.children[2].rotation.x = targetGazeX;
-      eyeLeftAssembly.children[2].rotation.y = targetGazeY;
-
-      eyeRightAssembly.children[2].rotation.x = targetGazeX;
-      eyeRightAssembly.children[2].rotation.y = targetGazeY;
-
-      // Rotate Outer Eye Bezel Rings slowly
-      eyeLeftAssembly.children[0].rotation.z += 0.005;
-      eyeRightAssembly.children[0].rotation.z -= 0.005;
-
-      // Animate Equalizer Bars in sync with speech
-      const bars = document.querySelectorAll('.visualizer-bar');
-      bars.forEach((bar, index) => {
-        let scale = 0.08;
-        if (isSpeaking) {
-          const wave = Math.sin(time * 10.0 + index * 0.45) * Math.cos(time * 4.0 - index * 0.25);
-          scale = Math.max(0.12, 0.55 + wave * 0.45);
-        } else {
-          scale = 0.08 + Math.sin(time * 2.0 + index * 0.3) * 0.04;
-        }
-        bar.style.transform = `scaleY(${scale})`;
-        
-        if (scale > 0.65) {
-          bar.style.backgroundColor = '#ec4899';
-          bar.style.boxShadow = '0 0 10px #ec4899';
-        } else {
-          bar.style.backgroundColor = '#00f0ff';
-          bar.style.boxShadow = '0 0 8px #00f0ff';
-        }
-      });
-
-      // Real-Time Voice Lip Sync & Pupil Dilation
-      if (isSpeaking) {
-        speakPhase += 0.28;
-        const wave = Math.sin(speakPhase) * 0.5 + 0.5;
-        const waveNoise = Math.cos(speakPhase * 1.7) * 0.5 + 0.5;
-        targetJawOpen = (wave * waveNoise * 0.28) + (Math.random() * 0.05);
-
-        // Dilate Pupils on Speech Syllables
-        eyeShaderUniforms.uPupilSize.value = 0.18 + (wave * 0.08);
-        headShaderUniforms.uSpeaking.value = 1.0;
-
-        eyeLightL.intensity = 3.2 + (wave * 1.5);
-        eyeLightR.intensity = 3.2 + (wave * 1.5);
-      } else {
-        targetJawOpen = 0;
-        eyeShaderUniforms.uPupilSize.value = 0.22;
-        headShaderUniforms.uSpeaking.value = 0.0;
-
-        eyeLightL.intensity = 2.5;
-        eyeLightR.intensity = 2.5;
-      }
-
-      currentJawOpen += (targetJawOpen - currentJawOpen) * 0.35;
-
-      if (headMeshModel) {
-        headMeshModel.rotation.x = currentJawOpen * 0.3;
-        headMeshModel.position.y = -1 - currentJawOpen * 0.15;
-      }
-
-      renderer.render(scene, camera);
+    /* ── Version tag ── */
+    .version-tag {
+      position: absolute;
+      bottom: 18px;
+      right: 20px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      color: rgba(100,116,139,0.55);
+      z-index: 6;
+      letter-spacing: 0.06em;
     }
+  </style>
+</head>
+<body>
 
-    animate();
+  <div class="stars"></div>
+  <div class="glow-bg" id="glow"></div>
+  <div class="crt-overlay"></div>
 
+  <!-- HUD corners -->
+  <div class="hud-corner tl"></div>
+  <div class="hud-corner tr"></div>
+  <div class="hud-corner bl"></div>
+  <div class="hud-corner br"></div>
 
-    // =========================================================================
-    // 6. WEBSOCKET REAL-TIME SYNC CONTROL
-    // =========================================================================
+  <div class="version-tag">PETIT NUAGE v3.0 — BIONIC CORE</div>
+
+  <div class="avatar-container" id="avatar-container">
+
+    <div class="wave-rings">
+      <div class="wave-ring"></div>
+      <div class="wave-ring"></div>
+      <div class="wave-ring"></div>
+    </div>
+
+    <div class="avatar-wrapper">
+      <svg id="bionic-avatar" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <!-- ===== IRIS: deep glass lens, cyan core -> magenta rim, like the reference ===== -->
+          <radialGradient id="irisGrad" cx="42%" cy="38%" r="62%">
+            <stop offset="0%"  stop-color="#082a33" />
+            <stop offset="18%" stop-color="#031014" />
+            <stop offset="34%" stop-color="#020617" />
+            <stop offset="48%" stop-color="#0891b2" />
+            <stop offset="62%" stop-color="#22d3ee" />
+            <stop offset="80%" stop-color="#c026d3" />
+            <stop offset="100%" stop-color="#831843" />
+          </radialGradient>
+          <radialGradient id="irisGradSpeaking" cx="42%" cy="38%" r="62%">
+            <stop offset="0%"  stop-color="#3b0a24" />
+            <stop offset="18%" stop-color="#140208" />
+            <stop offset="34%" stop-color="#020617" />
+            <stop offset="48%" stop-color="#be185d" />
+            <stop offset="62%" stop-color="#f472b6" />
+            <stop offset="80%" stop-color="#a855f7" />
+            <stop offset="100%" stop-color="#581c87" />
+          </radialGradient>
+          <!-- glass dome highlight over the iris -->
+          <radialGradient id="lensSheen" cx="34%" cy="26%" r="40%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+            <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12"/>
+            <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+          </radialGradient>
+          <!-- eye socket recess shadow -->
+          <radialGradient id="socketShadow" cx="50%" cy="50%" r="50%">
+            <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+            <stop offset="88%" stop-color="#000000" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#000000" stop-opacity="0.85"/>
+          </radialGradient>
+          <!-- chrome bezel ring around each eye, multi-stop for real specular feel -->
+          <linearGradient id="bezelChrome" x1="15%" y1="10%" x2="85%" y2="95%">
+            <stop offset="0%"  stop-color="#e2e8f0" />
+            <stop offset="14%" stop-color="#94a3b8" />
+            <stop offset="30%" stop-color="#334155" />
+            <stop offset="50%" stop-color="#1e293b" />
+            <stop offset="68%" stop-color="#475569" />
+            <stop offset="85%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#020617" />
+          </linearGradient>
+          <linearGradient id="bezelChromeInner" x1="20%" y1="15%" x2="80%" y2="90%">
+            <stop offset="0%" stop-color="#0f172a"/>
+            <stop offset="50%" stop-color="#334155"/>
+            <stop offset="100%" stop-color="#020617"/>
+          </linearGradient>
+
+          <!-- ===== HEAD SHELL: brushed gunmetal with top-down key light ===== -->
+          <linearGradient id="metalGrad" x1="30%" y1="0%" x2="70%" y2="100%">
+            <stop offset="0%"  stop-color="#94a3b8" />
+            <stop offset="10%" stop-color="#64748b" />
+            <stop offset="30%" stop-color="#334155" />
+            <stop offset="55%" stop-color="#1e293b" />
+            <stop offset="80%" stop-color="#0f172a" />
+            <stop offset="100%" stop-color="#020617" />
+          </linearGradient>
+          <!-- rim light wrapping the silhouette edge -->
+          <linearGradient id="rimLight" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#7dd3fc" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#7dd3fc" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="rimLightR" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#f0abfc" stop-opacity="0.7"/>
+            <stop offset="100%" stop-color="#f0abfc" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="crownHighlight" cx="50%" cy="0%" r="60%">
+            <stop offset="0%" stop-color="#cbd5e1" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#cbd5e1" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="metalGradLight" x1="20%" y1="10%" x2="80%" y2="90%">
+            <stop offset="0%" stop-color="#f1f5f9" />
+            <stop offset="35%" stop-color="#94a3b8" />
+            <stop offset="70%" stop-color="#475569" />
+            <stop offset="100%" stop-color="#1e293b" />
+          </linearGradient>
+          <linearGradient id="jawGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#334155" />
+            <stop offset="12%" stop-color="#1e293b" />
+            <stop offset="100%" stop-color="#010204" />
+          </linearGradient>
+          <linearGradient id="jawInnerShadow" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#000000" stop-opacity="0.75"/>
+            <stop offset="100%" stop-color="#000000" stop-opacity="0.15"/>
+          </linearGradient>
+          <linearGradient id="cableGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#cbd5e1"/>
+            <stop offset="100%" stop-color="#334155"/>
+          </linearGradient>
+
+          <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+            <feGaussianBlur stdDeviation="2.4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="strongGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="dropShadowSoft" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.5"/>
+          </filter>
+          <filter id="metalTexture" x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="noise" seed="7"/>
+            <feColorMatrix in="noise" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.03 0"/>
+          </filter>
+          <clipPath id="eyeClip"><circle r="27"/></clipPath>
+        </defs>
+
+        <!-- Ground contact shadow -->
+        <ellipse cx="100" cy="182" rx="62" ry="10" fill="#000000" opacity="0.4" filter="url(#softGlow)"/>
+
+        <!-- ============ HEAD SHELL (3D shaded) ============ -->
+        <g filter="url(#dropShadowSoft)">
+          <path id="head-shell" fill="url(#metalGrad)" stroke="#020617" stroke-width="1.2"
+            d="M 100,16
+               C 148,16 174,40 178,78
+               C 181,104 176,122 168,140
+               C 159,160 136,174 100,177
+               C 64,174 41,160 32,140
+               C 24,122 19,104 22,78
+               C 26,40 52,16 100,16 Z" />
+          <!-- procedural micro-texture for brushed metal -->
+          <path d="M 100,16 C 148,16 174,40 178,78 C 181,104 176,122 168,140 C 159,160 136,174 100,177 C 64,174 41,160 32,140 C 24,122 19,104 22,78 C 26,40 52,16 100,16 Z"
+            fill="url(#metalGrad)" filter="url(#metalTexture)" opacity="0.5"/>
+          <!-- crown highlight, key light from above -->
+          <ellipse cx="100" cy="40" rx="70" ry="34" fill="url(#crownHighlight)"/>
+          <!-- left rim light -->
+          <path d="M 32,140 C 24,122 19,104 22,78 C 26,40 52,16 100,16" fill="none" stroke="url(#rimLight)" stroke-width="3" opacity="0.8" stroke-linecap="round"/>
+          <!-- right rim light (cooler/pink bounce) -->
+          <path d="M 168,140 C 176,122 181,104 178,78 C 174,40 148,16 100,16" fill="none" stroke="url(#rimLightR)" stroke-width="2.5" opacity="0.55" stroke-linecap="round"/>
+          <!-- under-chin ambient occlusion -->
+          <path d="M 38,132 C 55,155 145,155 162,132 C 155,168 130,180 100,182 C 70,180 45,168 38,132 Z" fill="#000000" opacity="0.35"/>
+        </g>
+
+        <!-- Panel seams for a mechanical look, engraved (dark line + light line under) -->
+        <path d="M 30,80 C 54,73 146,73 170,80" fill="none" stroke="#000000" stroke-width="2" opacity="0.55"/>
+        <path d="M 30,81.6 C 54,74.6 146,74.6 170,81.6" fill="none" stroke="#7dd3fc" stroke-width="0.6" opacity="0.35"/>
+        <path d="M 36,131 C 59,141 141,141 164,131" fill="none" stroke="#000000" stroke-width="2" opacity="0.5"/>
+        <path d="M 36,132.4 C 59,142.4 141,142.4 164,132.4" fill="none" stroke="#7dd3fc" stroke-width="0.5" opacity="0.25"/>
+        <path d="M 100,16 L 100,32" stroke="#000000" stroke-width="1.8" opacity="0.5"/>
+
+        <!-- Rivets with 3D bevel -->
+        <g>
+          <circle cx="29" cy="68" r="2.6" fill="#0f172a"/>
+          <circle cx="28.5" cy="67.3" r="1.6" fill="#cbd5e1"/>
+          <circle cx="171" cy="68" r="2.6" fill="#0f172a"/>
+          <circle cx="170.5" cy="67.3" r="1.6" fill="#cbd5e1"/>
+          <circle cx="24" cy="104" r="2.6" fill="#0f172a"/>
+          <circle cx="23.5" cy="103.3" r="1.6" fill="#cbd5e1"/>
+          <circle cx="176" cy="104" r="2.6" fill="#0f172a"/>
+          <circle cx="175.5" cy="103.3" r="1.6" fill="#cbd5e1"/>
+        </g>
+
+        <!-- Antenna / cables coming off the sides, with cylindrical shading -->
+        <g fill="none" stroke-linecap="round">
+          <path d="M 22,64 C 12,56 6,48 2,38" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 22,64 C 12,56 6,48 2,38" stroke="url(#cableGrad)" stroke-width="2.4"/>
+          <path d="M 20,86 C 10,84 4,82 -2,78" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 20,86 C 10,84 4,82 -2,78" stroke="url(#cableGrad)" stroke-width="2.4"/>
+          <path d="M 178,64 C 188,56 194,48 198,38" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 178,64 C 188,56 194,48 198,38" stroke="url(#cableGrad)" stroke-width="2.4"/>
+          <path d="M 180,86 C 190,84 196,82 202,78" stroke="#020617" stroke-width="4.2" opacity="0.9"/>
+          <path d="M 180,86 C 190,84 196,82 202,78" stroke="url(#cableGrad)" stroke-width="2.4"/>
+        </g>
+        <g>
+          <circle cx="2" cy="38" r="3.4" fill="#0f172a"/><circle cx="1.4" cy="37.3" r="1.8" fill="#e2e8f0"/>
+          <circle cx="-2" cy="78" r="3.4" fill="#0f172a"/><circle cx="-2.6" cy="77.3" r="1.8" fill="#e2e8f0"/>
+          <circle cx="198" cy="38" r="3.4" fill="#0f172a"/><circle cx="197.4" cy="37.3" r="1.8" fill="#e2e8f0"/>
+          <circle cx="202" cy="78" r="3.4" fill="#0f172a"/><circle cx="201.4" cy="77.3" r="1.8" fill="#e2e8f0"/>
+        </g>
+
+        <!-- ============ EYES (bionic glass lens, deep 3D) ============ -->
+        <g id="eyes">
+          <!-- LEFT EYE -->
+          <g id="eye-left-group" transform="translate(65,80)">
+            <!-- socket recess -->
+            <circle r="31" fill="url(#socketShadow)"/>
+            <!-- outer chrome bezel, thick with real bevel gradient -->
+            <circle r="27" fill="url(#bezelChrome)"/>
+            <circle r="27" fill="none" stroke="#020617" stroke-width="1"/>
+            <g class="ring-slow">
+              <circle r="24.5" fill="none" stroke="#020617" stroke-width="5.5" stroke-dasharray="2.5 4.5" opacity="0.7"/>
+              <circle r="24.5" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2.5 4.5" opacity="0.4" transform="translate(0.5,-0.5)"/>
+            </g>
+            <!-- inner bezel lip (darker, gives the glass its recess) -->
+            <circle r="21.5" fill="url(#bezelChromeInner)"/>
+            <circle r="20" fill="#010204"/>
+            <!-- the glass lens / iris -->
+            <g id="iris-left" filter="url(#strongGlow)">
+              <circle r="18" fill="url(#irisGrad)" />
+              <!-- fine radial fibers for iris texture -->
+              <g stroke="#67e8f9" stroke-width="0.35" opacity="0.35">
+                <line x1="0" y1="0" x2="0" y2="-17"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(155)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-155)"/>
+                <line x1="0" y1="0" x2="0" y2="17" transform="rotate(180)"/>
+              </g>
+              <circle id="pupil-left" r="7.5" fill="#000000"/>
+              <circle id="pupil-left-rim" r="7.5" fill="none" stroke="#22d3ee" stroke-width="0.5" opacity="0.6"/>
+            </g>
+            <!-- glass dome sheen over everything (makes it read as a lens, not a flat circle) -->
+            <circle r="18" fill="url(#lensSheen)"/>
+            <circle cx="-6" cy="-8" r="2.2" fill="#ffffff" opacity="0.95"/>
+            <circle cx="4" cy="6" r="1" fill="#ffffff" opacity="0.5"/>
+            <!-- eyelid for blinking, clipped to the eye sphere -->
+            <g clip-path="url(#eyeClip)">
+              <rect id="lid-left" x="-30" y="-30" width="60" height="0" fill="#0a0e17"/>
+            </g>
+          </g>
+
+          <!-- RIGHT EYE -->
+          <g id="eye-right-group" transform="translate(135,80)">
+            <circle r="31" fill="url(#socketShadow)"/>
+            <circle r="27" fill="url(#bezelChrome)"/>
+            <circle r="27" fill="none" stroke="#020617" stroke-width="1"/>
+            <g class="ring-slow-rev">
+              <circle r="24.5" fill="none" stroke="#020617" stroke-width="5.5" stroke-dasharray="2.5 4.5" opacity="0.7"/>
+              <circle r="24.5" fill="none" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2.5 4.5" opacity="0.4" transform="translate(0.5,-0.5)"/>
+            </g>
+            <circle r="21.5" fill="url(#bezelChromeInner)"/>
+            <circle r="20" fill="#010204"/>
+            <g id="iris-right" filter="url(#strongGlow)">
+              <circle r="18" fill="url(#irisGrad)" />
+              <g stroke="#67e8f9" stroke-width="0.35" opacity="0.35">
+                <line x1="0" y1="0" x2="0" y2="-17"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-20)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-50)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-85)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-120)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(155)"/>
+                <line x1="0" y1="0" x2="6" y2="-16" transform="rotate(-155)"/>
+                <line x1="0" y1="0" x2="0" y2="17" transform="rotate(180)"/>
+              </g>
+              <circle id="pupil-right" r="7.5" fill="#000000"/>
+              <circle id="pupil-right-rim" r="7.5" fill="none" stroke="#22d3ee" stroke-width="0.5" opacity="0.6"/>
+            </g>
+            <circle r="18" fill="url(#lensSheen)"/>
+            <circle cx="-6" cy="-8" r="2.2" fill="#ffffff" opacity="0.95"/>
+            <circle cx="4" cy="6" r="1" fill="#ffffff" opacity="0.5"/>
+            <g clip-path="url(#eyeClip)">
+              <rect id="lid-right" x="-30" y="-30" width="60" height="0" fill="#0a0e17"/>
+            </g>
+          </g>
+        </g>
+
+        <!-- Brow ridge / sensor line, embossed -->
+        <path d="M 42,54 C 64,45 136,45 158,54" fill="none" stroke="#000000" stroke-width="3.2" opacity="0.6" stroke-linecap="round"/>
+        <path d="M 42,52.6 C 64,43.6 136,43.6 158,52.6" fill="none" stroke="#64748b" stroke-width="1.4" opacity="0.5" stroke-linecap="round"/>
+        <circle id="brow-led" cx="100" cy="48" r="2.6" fill="#22d3ee" opacity="0.8" filter="url(#softGlow)"/>
+
+        <!-- ============ MOUTH (LED vocoder bar, recessed 3D slot) ============ -->
+        <g id="mouth-group" transform="translate(100,142)">
+          <rect x="-40" y="-12" width="80" height="24" rx="12" fill="#000000" opacity="0.5" filter="url(#softGlow)"/>
+          <rect x="-38" y="-10" width="76" height="20" rx="10" fill="url(#jawGrad)" stroke="#000000" stroke-width="1.5"/>
+          <rect x="-38" y="-10" width="76" height="8" rx="6" fill="url(#jawInnerShadow)"/>
+          <rect x="-37" y="8.4" width="74" height="1.2" rx="0.6" fill="#64748b" opacity="0.4"/>
+          <g id="mouth-segments">
+            <rect class="mouth-seg" data-i="0" x="-32" y="-3" width="6" height="6" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="1" x="-23" y="-4" width="6" height="8" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="2" x="-14" y="-5" width="6" height="10" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="3" x="-5"  y="-6" width="6" height="12" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="4" x="4"   y="-6" width="6" height="12" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="5" x="13"  y="-5" width="6" height="10" rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="6" x="22"  y="-4" width="6" height="8"  rx="1.5" fill="#38bdf8"/>
+            <rect class="mouth-seg" data-i="7" x="31"  y="-3" width="6" height="6"  rx="1.5" fill="#38bdf8"/>
+          </g>
+        </g>
+
+        <!-- Jaw seam, engraved -->
+        <path d="M 46,150 C 64,163 136,163 154,150" fill="none" stroke="#000000" stroke-width="2.2" opacity="0.6"/>
+        <path d="M 46,151.6 C 64,164.6 136,164.6 154,151.6" fill="none" stroke="#64748b" stroke-width="0.6" opacity="0.3"/>
+      </svg>
+    </div>
+
+    <div class="status-badge" id="status-badge">
+      <div class="status-dot"></div>
+      <span id="status-text">Petit Nuage ☁️ — En écoute</span>
+    </div>
+
+    <!-- Equalizer canvas -->
+    <canvas id="eq-canvas" width="680" height="112"></canvas>
+
+    <div class="subtitle-box" id="subtitle-box">
+      Attente d'interaction vocale...
+    </div>
+
+  </div>
+
+  <script>
+    const glow        = document.getElementById('glow');
+    const container   = document.getElementById('avatar-container');
     const statusBadge = document.getElementById('status-badge');
-    const statusText = document.getElementById('status-text');
+    const statusText  = document.getElementById('status-text');
     const subtitleBox = document.getElementById('subtitle-box');
+    const mouthSegs   = Array.from(document.querySelectorAll('.mouth-seg'));
+    const lidLeft     = document.getElementById('lid-left');
+    const lidRight    = document.getElementById('lid-right');
+    const irisLeft    = document.getElementById('iris-left');
+    const irisRight   = document.getElementById('iris-right');
+    const pupilLeft   = document.getElementById('pupil-left');
+    const pupilRight  = document.getElementById('pupil-right');
+    const browLed     = document.getElementById('brow-led');
+
+    let isSpeaking   = false;
+    let mouthInterval = null;
+    let idleGazeInterval = null;
+
+    // ── Equalizer (canvas) ──
+    const eqCanvas = document.getElementById('eq-canvas');
+    const eqCtx    = eqCanvas.getContext('2d');
+    const BAR_COUNT = 28;
+    const eqBars    = new Float32Array(BAR_COUNT).fill(0.05);
+    const eqTarget  = new Float32Array(BAR_COUNT).fill(0.05);
+
+    function drawEQ() {
+      const W = eqCanvas.width;
+      const H = eqCanvas.height;
+      eqCtx.clearRect(0, 0, W, H);
+      const barW = W / BAR_COUNT;
+      const gap  = barW * 0.22;
+      const bW   = barW - gap;
+      for (let i = 0; i < BAR_COUNT; i++) {
+        eqBars[i] += (eqTarget[i] - eqBars[i]) * 0.18;
+        const h   = Math.max(4, eqBars[i] * H);
+        const x   = i * barW + gap / 2;
+        const y   = (H - h) / 2;
+        const mid = eqBars[i];
+        const grad = eqCtx.createLinearGradient(x, y, x, y + h);
+        if (mid > 0.65) {
+          grad.addColorStop(0,   'rgba(244,114,182,0.95)');
+          grad.addColorStop(0.5, 'rgba(192,38,211,0.85)');
+          grad.addColorStop(1,   'rgba(244,114,182,0.6)');
+        } else {
+          grad.addColorStop(0,   'rgba(34,211,238,0.9)');
+          grad.addColorStop(0.5, 'rgba(56,189,248,0.75)');
+          grad.addColorStop(1,   'rgba(34,211,238,0.4)');
+        }
+        eqCtx.shadowBlur  = mid > 0.65 ? 14 : 8;
+        eqCtx.shadowColor = mid > 0.65 ? '#f472b6' : '#22d3ee';
+        eqCtx.fillStyle = grad;
+        eqCtx.beginPath();
+        eqCtx.roundRect(x, y, bW, h, 3);
+        eqCtx.fill();
+      }
+      eqCtx.shadowBlur = 0;
+      requestAnimationFrame(drawEQ);
+    }
+    drawEQ();
+
+    function setEQIdle() {
+      const t = Date.now() / 1000;
+      for (let i = 0; i < BAR_COUNT; i++)
+        eqTarget[i] = 0.04 + 0.06 * Math.abs(Math.sin(t * 0.7 + i * 0.4));
+    }
+    function setEQSpeaking() {
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const mirror = Math.abs(i - BAR_COUNT / 2) / (BAR_COUNT / 2);
+        eqTarget[i] = 0.15 + (1 - mirror * 0.3) * Math.random() * 0.85;
+      }
+    }
+    let eqIdleLoop  = setInterval(setEQIdle, 100);
+    let eqSpeakLoop = null;
+
+    // ---------- Blinking (bionic eyelid slides down over the eye) ----------
+    function triggerBlink() {
+      lidLeft.setAttribute('height', '54');
+      lidRight.setAttribute('height', '54');
+      setTimeout(() => {
+        lidLeft.setAttribute('height', '0');
+        lidRight.setAttribute('height', '0');
+      }, 130);
+
+      const nextBlink = Math.random() * 4000 + 2200;
+      setTimeout(triggerBlink, nextBlink);
+    }
+    setTimeout(triggerBlink, 1800);
+
+    // ---------- Subtle idle pupil drift ----------
+    function idleGaze() {
+      const dx = (Math.random() - 0.5) * 6;
+      const dy = (Math.random() - 0.5) * 4;
+      pupilLeft.setAttribute('cx', dx);
+      pupilLeft.setAttribute('cy', dy);
+      pupilRight.setAttribute('cx', dx);
+      pupilRight.setAttribute('cy', dy);
+    }
+    idleGazeInterval = setInterval(idleGaze, 2600);
+
+    // ---------- Mouth "vocoder bar" animation for lip-sync ----------
+    function startMouthAnimation() {
+      if (mouthInterval) clearInterval(mouthInterval);
+      mouthInterval = setInterval(() => {
+        mouthSegs.forEach((seg) => {
+          const level = Math.random();
+          seg.style.opacity = (0.35 + level * 0.65).toFixed(2);
+          seg.setAttribute('fill', level > 0.6 ? '#f472b6' : '#38bdf8');
+        });
+      }, 90);
+    }
+
+    function stopMouthAnimation() {
+      if (mouthInterval) clearInterval(mouthInterval);
+      mouthSegs.forEach((seg) => {
+        seg.style.opacity = '0.18';
+        seg.setAttribute('fill', '#38bdf8');
+      });
+    }
 
     function setSpeakingState(speaking, text = "") {
       isSpeaking = speaking;
       if (speaking) {
+        document.body.classList.add('speaking-state');
+        glow.classList.add('speaking');
+        container.classList.add('speaking');
         statusBadge.classList.add('speaking');
-        statusText.textContent = "🔊 PETIT NUAGE PARLE DANS DISCORD !";
+        statusText.textContent = "🔊 Petit Nuage parle dans Discord !";
+        irisLeft.querySelector('circle').setAttribute('fill', 'url(#irisGradSpeaking)');
+        irisRight.querySelector('circle').setAttribute('fill', 'url(#irisGradSpeaking)');
+        browLed.setAttribute('fill', '#f472b6');
+        startMouthAnimation();
+        // EQ speaking
+        clearInterval(eqIdleLoop); eqIdleLoop = null;
+        if (!eqSpeakLoop) eqSpeakLoop = setInterval(setEQSpeaking, 90);
         if (text) {
           subtitleBox.textContent = `"${text}"`;
           subtitleBox.classList.add('active');
         }
       } else {
+        document.body.classList.remove('speaking-state');
+        glow.classList.remove('speaking');
+        container.classList.remove('speaking');
         statusBadge.classList.remove('speaking');
-        statusText.textContent = "PETIT NUAGE ☁️ — 3D LeePerrySmith GLSL ACTIF";
+        statusText.textContent = "Petit Nuage ☁️ — En écoute";
+        irisLeft.querySelector('circle').setAttribute('fill', 'url(#irisGrad)');
+        irisRight.querySelector('circle').setAttribute('fill', 'url(#irisGrad)');
+        browLed.setAttribute('fill', '#22d3ee');
+        stopMouthAnimation();
+        // EQ idle
+        if (eqSpeakLoop) { clearInterval(eqSpeakLoop); eqSpeakLoop = null; }
+        if (!eqIdleLoop) eqIdleLoop = setInterval(setEQIdle, 100);
         subtitleBox.classList.remove('active');
       }
     }
 
+    // ---------- WebSocket Connection to Bot (unchanged logic) ----------
     function connectWS() {
       const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${location.host}/ws`;
+      console.log("Connexion WebSocket à:", wsUrl);
+
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        statusText.textContent = "PETIT NUAGE ☁️ — CONNECTÉ (3D SYNC ACTIVE)";
+        console.log("Connecté au serveur de Petit Nuage");
+        statusText.textContent = "Petit Nuage ☁️ — Connecté";
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log("Événement reçu:", data);
           if (data.type === "speaking") {
             setSpeakingState(data.value, data.text || "");
           }
         } catch (e) {
-          console.error("WS Parse error:", e);
+          console.error("Erreur de décodage WS:", e);
         }
       };
 
       ws.onclose = () => {
-        statusText.textContent = "RECONNEXION WEBSOCKET...";
+        console.log("WebSocket déconnecté, nouvelle tentative dans 3s...");
+        statusText.textContent = "Reconnexion...";
         setSpeakingState(false);
         setTimeout(connectWS, 3000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("Erreur WS:", err);
+        ws.close();
       };
     }
 

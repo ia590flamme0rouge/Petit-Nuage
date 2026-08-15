@@ -166,21 +166,19 @@ window.addEventListener("resize", () => {
 const JAW = {
   pivotY: 1.463,
   pivotZ: 0.01,
-  maxAngle: 0.70, // radians (~40°) — ouverture de mâchoire bien visible
+  maxAngle: 0.85, // radians (~48°) — ouverture très franche et visible
 
-  // trapèze de poids sur Y (bas du visage = poids 1)
-  yFadeLowStart: 1.350,  // 0 sous le cou
-  yFadeLowEnd:   1.395,  // 1 à partir du bas du menton
-  yFadeHighStart:1.440,  // encore 1 (lèvre inférieure)
-  yFadeHighEnd:  1.465,  // 0 à la lèvre supérieure / nez
+  // Trapèze Y : lèvre inférieure & menton bougent (100%), lèvre supérieure & nez restent immobiles (0%)
+  yFadeLowStart: 1.280,  // bas du cou
+  yFadeLowEnd:   1.350,  // bas du menton
+  yFadeHighStart:1.410,  // lèvre inférieure (mobile)
+  yFadeHighEnd:  1.432,  // lèvre supérieure (fixe)
 
-  // limite latérale (inclut toute la largeur du bas de la mâchoire)
+  // Largeur et profondeur de mâchoire
   xFadeInEnd:  0.080,
-  xFadeOutEnd: 0.140,
-
-  // face avant et côtés du visage
+  xFadeOutEnd: 0.150,
   zFadeInEnd:  0.020,
-  zFadeOutEnd: -0.060,
+  zFadeOutEnd: -0.070,
 };
 
 function smoothstep(edge0, edge1, x) {

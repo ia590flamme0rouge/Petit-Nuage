@@ -166,21 +166,21 @@ window.addEventListener("resize", () => {
 const JAW = {
   pivotY: 1.463,
   pivotZ: 0.01,
-  maxAngle: 0.26, // radians (~15°) — amplitude d'ouverture max
+  maxAngle: 0.70, // radians (~40°) — ouverture de mâchoire bien visible
 
   // trapèze de poids sur Y (bas du visage = poids 1)
-  yFadeLowStart: 1.355,  // 0 sous le cou
+  yFadeLowStart: 1.350,  // 0 sous le cou
   yFadeLowEnd:   1.395,  // 1 à partir du bas du menton
-  yFadeHighStart:1.44,   // encore 1 (lèvre inférieure)
+  yFadeHighStart:1.440,  // encore 1 (lèvre inférieure)
   yFadeHighEnd:  1.465,  // 0 à la lèvre supérieure / nez
 
-  // limite latérale (exclut les oreilles)
-  xFadeInEnd:  0.045,
-  xFadeOutEnd: 0.08,
+  // limite latérale (inclut toute la largeur du bas de la mâchoire)
+  xFadeInEnd:  0.080,
+  xFadeOutEnd: 0.140,
 
-  // ne garder que la face avant (exclut oreilles / arrière crâne)
-  zFadeInEnd:  0.01,
-  zFadeOutEnd: -0.03,
+  // face avant et côtés du visage
+  zFadeInEnd:  0.020,
+  zFadeOutEnd: -0.060,
 };
 
 function smoothstep(edge0, edge1, x) {
@@ -302,6 +302,22 @@ loader.load(
         document.getElementById("vertCount").textContent = jawData.affected;
       }
     });
+
+    // Auto-cadrage parfait de la caméra sur le modèle 3D
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    
+    // Positionnement idéal de la caméra avec marge
+    const fov = camera.fov * (Math.PI / 180);
+    let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2.2;
+    
+    camera.position.set(center.x, center.y, center.z + cameraZ);
+    controls.target.copy(center);
+    controls.minDistance = maxDim * 0.4;
+    controls.maxDistance = maxDim * 8.0;
+    controls.update();
 
     document.getElementById("loading").style.display = "none";
   },

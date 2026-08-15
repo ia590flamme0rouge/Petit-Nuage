@@ -318,11 +318,22 @@ async def broadcast_avatar_event(event_data: dict):
         except Exception:
             pass
 
+voice_handler.on_speaking_change = broadcast_avatar_event
+
+
+async def model_file(request):
+    if os.path.exists("LeePerrySmith.glb"):
+        with open("LeePerrySmith.glb", "rb") as f:
+            data = f.read()
+        return web.Response(body=data, content_type="model/gltf-binary")
+    return web.Response(text="Modele 3D introuvable", status=404)
+
 
 async def run_web_server():
     app = web.Application()
     app.router.add_get("/", health_check)
     app.router.add_get("/avatar", avatar_page)
+    app.router.add_get("/LeePerrySmith.glb", model_file)
     app.router.add_get("/ws", ws_handler)
     runner = web.AppRunner(app)
     await runner.setup()

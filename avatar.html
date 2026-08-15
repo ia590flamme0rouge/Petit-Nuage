@@ -143,6 +143,34 @@
       box-shadow: 0 0 25px rgba(0, 240, 255, 0.4);
       opacity: 1;
     }
+
+    /* Audio Equalizer Visualizer Bars */
+    .visualizer-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 5px;
+      height: 60px;
+      padding: 8px 16px;
+      background: rgba(27, 0, 58, 0.5);
+      border-radius: 16px;
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      pointer-events: auto;
+      min-width: 280px;
+      margin-top: 0.5rem;
+    }
+    .visualizer-bar {
+      width: 6px;
+      height: 100%;
+      background-color: #00f0ff;
+      border-radius: 3px;
+      transform-origin: bottom;
+      transform: scaleY(0.08);
+      transition: transform 0.08s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 0 8px #00f0ff;
+    }
   </style>
   <!-- Three.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -168,6 +196,9 @@
     </div>
     <div class="subtitle-box" id="subtitle-box">
       Attente d'interaction vocale...
+    </div>
+    <div class="visualizer-container" id="visualizer-container">
+      <!-- Generated dynamically by JS -->
     </div>
   </div>
 
@@ -483,6 +514,15 @@
       mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     });
 
+    // Generate Equalizer Visualizer Bars dynamically
+    const visualizerContainer = document.getElementById('visualizer-container');
+    const numBars = 24;
+    for (let i = 0; i < numBars; i++) {
+      const bar = document.createElement('div');
+      bar.classList.add('visualizer-bar');
+      visualizerContainer.appendChild(bar);
+    }
+
     // =========================================================================
     // 5. ANIMATION LOOP & REAL-TIME WEBSOCKET LIP-SYNC
     // =========================================================================
@@ -531,6 +571,27 @@
       // Rotate Outer Eye Bezel Rings slowly
       eyeLeftAssembly.children[0].rotation.z += 0.005;
       eyeRightAssembly.children[0].rotation.z -= 0.005;
+
+      // Animate Equalizer Bars in sync with speech
+      const bars = document.querySelectorAll('.visualizer-bar');
+      bars.forEach((bar, index) => {
+        let scale = 0.08;
+        if (isSpeaking) {
+          const wave = Math.sin(time * 10.0 + index * 0.45) * Math.cos(time * 4.0 - index * 0.25);
+          scale = Math.max(0.12, 0.55 + wave * 0.45);
+        } else {
+          scale = 0.08 + Math.sin(time * 2.0 + index * 0.3) * 0.04;
+        }
+        bar.style.transform = `scaleY(${scale})`;
+        
+        if (scale > 0.65) {
+          bar.style.backgroundColor = '#ec4899';
+          bar.style.boxShadow = '0 0 10px #ec4899';
+        } else {
+          bar.style.backgroundColor = '#00f0ff';
+          bar.style.boxShadow = '0 0 8px #00f0ff';
+        }
+      });
 
       // Real-Time Voice Lip Sync & Pupil Dilation
       if (isSpeaking) {

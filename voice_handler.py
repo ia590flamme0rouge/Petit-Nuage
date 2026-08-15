@@ -32,6 +32,8 @@ class VoiceHandler:
         # File TTS pour eviter les chevauchements
         self._tts_queue: asyncio.Queue = asyncio.Queue()
         self._tts_worker_task: Optional[asyncio.Task] = None
+        # Callback pour l'animation de l'avatar (WebSocket)
+        self.on_speaking_change = None
 
     # ------------------------------------------------------------------
     # Connexion / deconnexion
@@ -146,11 +148,11 @@ class VoiceHandler:
             voice_client.play(audio_source, after=after_play)
 
             # Événement Avatar immédiat sans délai HTTP
-            try:
-                from bot import broadcast_avatar_event
-                asyncio.create_task(broadcast_avatar_event({"type": "speaking", "value": True, "text": text}))
-            except Exception:
-                pass
+            if self.on_speaking_change:
+                try:
+                    asyncio.create_task(self.on_speaking_change({"type": "speaking", "value": True, "text": text}))
+                except Exception as e:
+                    logger.error(f"Erreur callback speaking start: {e}")
 
             if self.text_channel:
                 asyncio.create_task(self.text_channel.send("🔊 *Le bot parle dans le salon vocal...*"))
@@ -160,11 +162,11 @@ class VoiceHandler:
             logger.info("Fin de lecture TTS.")
 
             # Stopper l'animation Avatar immédiatement
-            try:
-                from bot import broadcast_avatar_event
-                asyncio.create_task(broadcast_avatar_event({"type": "speaking", "value": False}))
-            except Exception:
-                pass
+            if self.on_speaking_change:
+                try:
+                    asyncio.create_task(self.on_speaking_change({"type": "speaking", "value": False}))
+                except Exception as e:
+                    logger.error(f"Erreur callback speaking stop: {e}")
 
         except Exception as e:
             logger.error(f"Erreur TTS: {e}")
